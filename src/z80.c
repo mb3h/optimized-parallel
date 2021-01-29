@@ -2,8 +2,9 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include "z80.h"
-#include "assert.h"
+#include "z80priv.h"
 
+#include "assert.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
@@ -11,29 +12,6 @@
 typedef uint32_t u32;
 typedef  uint8_t u8;
 typedef uint16_t u16;
-
-struct z80_ {
-	union {
-		struct {
-			u16 bc, de, hl, af, sp;
-		} rr;
-		u16 r16[5];
-		struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-			u8 c, b, e, d, l, h, f, a, spl, sph;
-#else
-			u8 b, c, d, e, h, l, a, f, spl, sph;
-#endif
-		} r;
-		u8 r8[8];
-	};
-	u16 pc;
-	struct {
-		void *ptr;
-		u32 flags;
-	} mem[8];
-};
-typedef struct z80_ z80_s;
 
 static const unsigned R2I[8] = {
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -45,9 +23,6 @@ static const unsigned R2I[8] = {
 static const unsigned RR2I[4] = {
 	0, 1, 2, 4
 };
-
-//#define M1 4
-#define M1 (4 +1)
 
 #define PTR16(mmap8, addr) ((mmap8)[7 & (addr) >> 13].ptr)
 #define PTR16OFS(addr) (0x1FFF & (addr))
