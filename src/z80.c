@@ -55,11 +55,13 @@ static const unsigned RR2I[4] = {
 
 static unsigned ld_rr_nn (z80_s *m_, const u8 *p)
 {
+BUG(m_ && p)
 unsigned r16;
 	r16 = 3 & p[0] >> 4;
 u8 *src;
 	++m_->pc;
 	src = (u8 *)PTR16(m_->mem, m_->pc);
+BUG(src)
 	src += PTR16OFS(m_->pc);
 u16 nn;
 	nn = src[0];
@@ -74,6 +76,7 @@ u16 *dst;
 
 static unsigned inc_rr (z80_s *m_, const u8 *p)
 {
+BUG(m_ && p)
 unsigned r16;
 	r16 = 3 & p[0] >> 4;
 	++m_->pc;
@@ -86,6 +89,7 @@ u16 *dst;
 // TODO: flag register
 static unsigned inc_r (z80_s *m_, const u8 *p)
 {
+BUG(m_ && p)
 unsigned r8;
 	r8 = 7 & p[0] >> 3;
 u8 *src;
@@ -94,6 +98,7 @@ u8 *dst;
 	switch (r8) {
 	case 6:
 		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(dst)
 		dst += PTR16OFS(m_->rr.hl);
 		*dst = (u8)(*dst +1);
 		return M1 +3 +3;
@@ -106,17 +111,20 @@ u8 *dst;
 
 static unsigned ld_r_n (z80_s *m_, const u8 *p)
 {
+BUG(m_ && p)
 unsigned r8;
 	r8 = 7 & p[0] >> 3;
 u8 *src;
 	++m_->pc;
 	src = (u8 *)PTR16(m_->mem, m_->pc);
+BUG(src)
 	src += PTR16OFS(m_->pc);
 	++m_->pc;
 u8 *dst;
 	switch (r8) {
 	case 6:
 		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(dst)
 		dst += PTR16OFS(m_->rr.hl);
 		*dst = *src;
 		return M1 +3 +3;
@@ -129,6 +137,7 @@ u8 *dst;
 
 static unsigned ld_r_r (z80_s *m_, const u8 *p)
 {
+BUG(m_ && p)
 unsigned clocks;
 	clocks = M1;
 unsigned r8;
@@ -137,6 +146,7 @@ u8 *src;
 	switch (r8) {
 	case 6:
 		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(src)
 		src += PTR16OFS(m_->rr.hl);
 		clocks += 3;
 		break;
@@ -149,6 +159,7 @@ u8 *dst;
 	switch (r8) {
 	case 6:
 		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(dst)
 		dst += PTR16OFS(m_->rr.hl);
 		clocks += 3;
 		break;
@@ -163,6 +174,7 @@ u8 *dst;
 // TODO: flag register
 static unsigned xor_r (z80_s *m_, const u8 *p)
 {
+BUG(m_ && p)
 unsigned r8;
 	r8 = 7 & p[0] >> 3;
 u8 *src;
@@ -171,6 +183,7 @@ u8 *dst;
 	switch (r8) {
 	case 6:
 		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(dst)
 		dst += PTR16OFS(m_->rr.hl);
 		*dst = (u8)(*dst ^ m_->r.a);
 		return M1 +3;
@@ -221,13 +234,16 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 
 unsigned z80_exec (struct z80 *this_, unsigned min_clocks)
 {
+BUG(this_ && 0 < min_clocks)
 z80_s *m_;
 	m_ = (z80_s *)this_;
 unsigned clocks;
 	for (clocks = 0; clocks < min_clocks;) {
 u8 *p;
 		p = (u8 *)PTR16(m_->mem, m_->pc);
+BUG(p)
 		p += PTR16OFS(m_->pc);
+BUG(z80_opcode[*p])
 		clocks += z80_opcode[*p] (m_, p);
 	}
 	return clocks;
@@ -235,6 +251,8 @@ u8 *p;
 
 bool z80_init (struct z80 *this_, size_t cb)
 {
+BUG(this_)
+BUG(sizeof(z80_s) <= cb)
 	memset (this_, 0, sizeof(z80_s));
 }
 
@@ -251,6 +269,7 @@ static u8 hello_world_z80[] = {
 }; // (258 states)
 
 u8 mem0[0x30], mem5[0x2000];
+BUG(sizeof(hello_world_z80) <= sizeof(mem0))
 	memcpy (mem0, hello_world_z80, sizeof(hello_world_z80));
 	memset (mem5, 0, sizeof(mem5));
 unsigned executed;
@@ -258,6 +277,9 @@ unsigned executed;
 	m_->mem[5].ptr = mem5, m_->mem[5].flags = 0;
 	m_->pc = 0x0000;
 	executed = z80_exec ((struct z80 *)m_, 251);
+BUG(258 == executed)
+BUG(0x002F == m_->pc)
+BUG(0 == strcmp ("Hello world!", (const char *)mem5))
 	fprintf (stderr, VTGG "%s" VTO "\n", (const char *)mem5);
 }
 
@@ -472,8 +494,12 @@ z80_s *m_;
 	m_ = (z80_s *)&z80;
 
 	// memory layout debug
+BUG(&m_->rr.de == &m_->r16[1])
+BUG(&m_->rr.sp == &m_->r16[4])
 #if BYTE_ORDER == LITTLE_ENDIAN
+BUG(&m_->rr.de == (u16 *)&m_->r.e)
 #else
+BUG(&m_->rr.de == (u16 *)&m_->r.d)
 #endif
 //	hello_world_test (m_);
 	each_opcode_test (m_);
