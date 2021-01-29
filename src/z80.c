@@ -109,6 +109,29 @@ BUG(dst)
 	}
 }
 
+// TODO: flag register
+static unsigned dec_r (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned r8;
+	r8 = 7 & p[0] >> 3;
+u8 *src;
+	++m_->pc;
+u8 *dst;
+	switch (r8) {
+	case 6:
+		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(dst)
+		dst += PTR16OFS(m_->rr.hl);
+		*dst = (u8)(*dst +0xFF);
+		return M1 +3 +3;
+	default:
+		dst = m_->r8 + R2I[r8];
+		*dst = (u8)(*dst +0xFF);
+		return M1;
+	}
+}
+
 static unsigned ld_r_n (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -195,14 +218,14 @@ BUG(dst)
 }
 
 static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
-	  NULL  , ld_rr_nn, NULL  , inc_rr, inc_r , NULL  , ld_r_n, NULL  
-	, NULL  , NULL    , NULL  , NULL  , inc_r , NULL  , ld_r_n, NULL  
-	, NULL  , ld_rr_nn, NULL  , inc_rr, inc_r , NULL  , ld_r_n, NULL  
-	, NULL  , NULL    , NULL  , NULL  , inc_r , NULL  , ld_r_n, NULL  
-	, NULL  , ld_rr_nn, NULL  , inc_rr, inc_r , NULL  , ld_r_n, NULL  
-	, NULL  , NULL    , NULL  , NULL  , inc_r , NULL  , ld_r_n, NULL  
-	, NULL  , ld_rr_nn, NULL  , inc_rr, inc_r , NULL  , ld_r_n, NULL  
-	, NULL  , NULL    , NULL  , NULL  , inc_r , NULL  , ld_r_n, NULL  
+	  NULL  , ld_rr_nn, NULL  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, NULL  , NULL    , NULL  , NULL  , inc_r , dec_r , ld_r_n, NULL  
+	, NULL  , ld_rr_nn, NULL  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, NULL  , NULL    , NULL  , NULL  , inc_r , dec_r , ld_r_n, NULL  
+	, NULL  , ld_rr_nn, NULL  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, NULL  , NULL    , NULL  , NULL  , inc_r , dec_r , ld_r_n, NULL  
+	, NULL  , ld_rr_nn, NULL  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, NULL  , NULL    , NULL  , NULL  , inc_r , dec_r , ld_r_n, NULL  
 
 	, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r
 	, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r
