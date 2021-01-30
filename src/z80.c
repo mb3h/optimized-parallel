@@ -3,6 +3,11 @@
 #include <unistd.h>
 #include "z80.h"
 #include "z80priv.h"
+#ifndef Tw
+# define M1 4
+#else
+# define M1 (4 +Tw)
+#endif
 
 #include "assert.h"
 #include <stdio.h>

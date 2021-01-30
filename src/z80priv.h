@@ -24,7 +24,6 @@ struct z80_ {
 };
 typedef struct z80_ z80_s;
 
-//#define M1 4
-#define M1 (4 +1)
+#define Tw 1
 
 #endif //def Z80PRIV_H_INCLUDED__
