@@ -7,7 +7,7 @@
 ## TODO priority / progress
 
 - [x] startup sample CPU emuration. (language level)
-- [ ] startup sample CPU emuration. (i386 level)
+- [x] startup sample CPU emuration. (i386 level)
 - [ ] startup sample videochip emuration.
 - [ ] startup optimized parallel frame.
 - [ ] complete sample videochip emuration.
