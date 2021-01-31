@@ -18,17 +18,6 @@ typedef uint32_t u32;
 typedef  uint8_t u8;
 typedef uint16_t u16;
 
-static const unsigned R2I[8] = {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	1, 0, 3, 2, 5, 4, 8, 7
-#else
-	0, 1, 2, 3, 4, 5, 7, 8
-#endif
-};
-static const unsigned RR2I[4] = {
-	0, 1, 2, 4
-};
-
 #define PTR16(mmap8, addr) ((mmap8)[7 & (addr) >> 13].ptr)
 #define PTR16OFS(addr) (0x1FFF & (addr))
 
@@ -279,8 +268,8 @@ unsigned executed;
 	m_->mem[0].ptr = mem0, m_->mem[0].flags = 0;
 	m_->mem[5].ptr = mem5, m_->mem[5].flags = 0;
 	m_->pc = 0x0000;
-	executed = z80_exec ((struct z80 *)m_, 251);
-BUG(258 == executed)
+	executed = z80_exec ((struct z80 *)m_, 218 +Tw * 32 +1); // CLK(0000-002E) +1
+BUG(225 +Tw * 33 == executed)
 BUG(0x002F == m_->pc)
 BUG(0 == strcmp ("Hello world!", (const char *)mem5))
 	fprintf (stderr, VTGG "%s" VTO "\n", (const char *)mem5);
@@ -497,8 +486,8 @@ z80_s *m_;
 	m_ = (z80_s *)&z80;
 
 	// memory layout debug
-BUG(&m_->rr.de == &m_->r16[1])
-BUG(&m_->rr.sp == &m_->r16[4])
+BUG(&m_->rr.de == &m_->r16[RR2I[1]])
+BUG(&m_->rr.sp == &m_->r16[RR2I[3]])
 #if BYTE_ORDER == LITTLE_ENDIAN
 BUG(&m_->rr.de == (u16 *)&m_->r.e)
 #else
