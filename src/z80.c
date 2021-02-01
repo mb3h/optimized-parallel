@@ -480,6 +480,9 @@ size_t i;
 
 int main (int argc, char *argv[])
 {
+int test_number;
+	test_number = (1 < argc) ? atoi (argv[1]) : 0;
+
 struct z80 z80;
 	z80_init (&z80, sizeof(z80));
 z80_s *m_;
@@ -493,8 +496,14 @@ BUG(&m_->rr.de == (u16 *)&m_->r.e)
 #else
 BUG(&m_->rr.de == (u16 *)&m_->r.d)
 #endif
-//	hello_world_test (m_);
-	each_opcode_test (m_);
+	switch (test_number) {
+	case 0:
+		hello_world_test (m_);
+		break;
+	case 1:
+		each_opcode_test (m_);
+		break;
+	}
 	return 0;
 }
 #endif
