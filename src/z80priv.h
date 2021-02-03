@@ -8,6 +8,12 @@
 # define RRm 32
 #endif
 
+struct memctl {
+	void *raw_or_rwfn;
+	void *rwfn_priv;
+};
+typedef struct memctl memctl_s;
+
 struct z80_ {
 	union {
 		struct {
@@ -60,10 +66,7 @@ struct z80_ {
 	uint16_t pc32, pc;
 # endif
 #endif
-	struct {
-		void *ptr;
-		uint32_t flags;
-	} mem[8];
+	memctl_s mem[8];
 };
 typedef struct z80_ z80_s;
 

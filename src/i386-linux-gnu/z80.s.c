@@ -1,3 +1,4 @@
+#if i386 == Em
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -20,16 +21,30 @@
 
 #define LF "\n"
 #define NL LF "\t"
-#define LC ".L"
-#define OP ".L"
-#define M ".L"
+#define LC ".L" // local address (.text/.rodata)
+#define LS ".L" // local symbol (.equ)
+#define OP ".L" // local address of opcode (.text)
+#define M ".L" // local offset of member (.struct)
 
 #if 16 == RRm
 # define sizeofPAD "0"
 #else //if 32 == RRm
 # define sizeofPAD "2"
 #endif
+# define sizeofPTR "4"
 
+// memctl_s
+__asm__ (
+	".equ " LS "log2of_memctl" ",3" NL // 1 << 3 == sizeof(memctl_s)
+
+	".struct 0" LF
+M "raw_or_rwfn:" LF
+	".struct " M "raw_or_rwfn +" sizeofPTR LF
+M "rwfn_priv:" LF
+	".struct " M "rwfn_priv +" sizeofPTR LF
+);
+
+// z80_s
 __asm__ (
 	".struct 0" LF
 M "reg_bc:" LF
@@ -53,17 +68,27 @@ M "reg_f:" NL
 M "reg_a:" NL
 	".struct " M "reg_a +1 +" sizeofPAD LF
 M "reg_sp:" LF
-	".struct " M "reg_sp +2 +" sizeofPAD LF
+M "reg_spl:" NL
+	".struct " M "reg_spl +1" LF
+M "reg_sph:" NL
+	".struct " M "reg_sph +1 +" sizeofPAD LF
+M "reg_pc:" NL
+	".struct " M "reg_pc +2 +" sizeofPAD LF
+M "mem:" NL
+	".struct " M "mem +(8 << " LS "log2of_memctl)" LF
 );
 
 #if 16 == RRm
 # define ECX          "%cx"
 # define EDX          "%dx"
+# define EBX          "%bx"
 #else //if 32 == RRm
 # define ECX          "%ecx"
 # define EDX          "%edx"
+# define EBX          "%ebx"
 #endif
 
+#define CLK             "%ebp"
 #define EAPC            "%edi"
 #define CPU             "%esi"
 #define A               "%al"
@@ -112,6 +137,18 @@ M "reg_sp:" LF
 #define dx2ST(dst) \
 	"mov " EDX "," dst NL
 
+#define GFNSTART(label) \
+	__asm__ ( \
+		".text" NL \
+		".globl " "z80_" #label NL \
+		".type " "z80_" #label ",@function" LF \
+	"z80_" #label ":" NL \
+		".cfi_startproc" NL
+#define GFNEND0(label) \
+		".cfi_endproc" NL \
+		".size " "z80_" #label ",.-" "z80_" #label NL \
+	);
+
 #define LCFUNC(label) \
 	__asm__ ( \
 		".text" NL \
@@ -144,8 +181,19 @@ LCFUNC(cxREAD2dx)
 	/* TODO: */
 LCEND(cxREAD2dx)
 
+// broken: ebx
 LCFUNC(dl2WRITEcx)
 	/* TODO: */
+	"and " ECX ",7" NL INTEL // (1 << 16 -13) -1
+	"mov " ECX "," M "raw_or_rwfn + " M "mem[" CPU "][" ECX " * 2]" NL INTEL // 2 = 1 << log2of(memctl_s) -2
+	"and " EBX ",0x1FFF" NL INTEL // (1 << 13) -1
+	"mov " ECX "," EBX "" NL
+	"shr $13 -2," ECX NL
+	"and $7," ECX NL // (1 << 16 -13) -1
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," ECX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+	"and $0x1FFF," EBX NL // (1 << 13) -1
+	"mov %dl,(" ECX "," EBX ",1)" NL
+	"ret" LF
 LCEND(dl2WRITEcx)
 
 LCFUNC(dx2WRITEcx)
@@ -163,12 +211,12 @@ LCEND(dx2WRITEcx)
 
 #define FETCH2dl(label) \
 	/* TODO: mem[] */ \
-	"movzbl (" EAPC ")," "%edx" NL \
-	"inc " EAPC NL
+	"inc " EAPC NL \
+	"movzbl (" EAPC ")," "%edx" NL
 #define FETCH2dx(label) \
 	/* TODO: mem[] */ \
 	"add $2," EAPC NL \
-	"movzwl -2(" EAPC ")," "%edx" NL
+	"movzwl -1(" EAPC ")," "%edx" NL
 
 OPFUNC(NOP) CLK1(4,1) OPEND(NOP) // (4+Tw)
 
@@ -352,3 +400,55 @@ LC "z80_opcode:" NL
 
 	".size " LC "z80_opcode" ",.-" LC "z80_opcode" NL
 );
+
+GFNSTART(exec)
+	"push " CPU NL
+	"push " ECX NL
+	"push " CLK NL
+	".cfi_def_cfa_offset 16" NL
+	".cfi_offset " CLK ",-16" NL // ebp
+	"push " EBX NL
+	".cfi_def_cfa_offset 20" NL
+	"push " EAPC NL
+	".cfi_def_cfa_offset 24" NL
+
+	"and " ECX ",7" NL INTEL // (1 << 16 -13) -1
+	"mov " ECX "," M "raw_or_rwfn + " M "mem[" CPU "][" ECX " * 2]" NL INTEL // 2 = 1 << log2of(memctl_s) -2
+	"and " EAPC ",0x1FFF" NL INTEL // (1 << 13) -1
+
+LC "z80_exec_loop:"
+	FETCH2dl(z80_exec)
+
+	"mov 24+0(%esp)," CPU NL
+	"mov " M "reg_pc(" CPU ")," ECX NL
+	"mov " ECX "," EAPC NL
+	"shr $13 -2," ECX NL
+	"and $7," ECX NL // (1 << 16 -13) -1
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," ECX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+	"and $0x1FFF," EAPC NL // (1 << 13) -1
+	"add " ECX "," EAPC NL
+
+	"dec " EAPC NL
+	"xor " CLK "," CLK NL
+LC "z80_exec_loop:"
+	FETCH2dl(z80_exec)
+	"call *" LC "z80_opcode(," EDX ",4)" NL
+
+	"cmp 24+4(%esp)," CLK NL
+	"jc " LC "z80_exec_loop" NL
+	
+	"pop " EAPC NL
+	".cfi_def_cfa esp,20" NL
+	"pop " EBX NL
+	".cfi_def_cfa_offset 16" NL
+	"pop " CLK NL
+	".cfi_restore " CLK NL // ebp
+	".cfi_def_cfa_offset 12" NL
+	"pop " ECX NL
+	".cfi_def_cfa_offset 8" NL
+	"pop " CPU NL
+	".cfi_def_cfa_offset 4" NL
+	"ret $8" LF
+GFNEND0(exec)
+
+#endif // i386 == Em
