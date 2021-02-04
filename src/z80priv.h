@@ -18,12 +18,12 @@ struct z80_ {
 	union {
 		struct {
 #if 16 == RRm
-			uint16_t bc, de, hl, af, sp;
+			uint16_t bc, de, hl, sp, fa;
 #else //if 32 == RRm
 # if BYTE_ORDER == LITTLE_ENDIAN
-			uint16_t bc, bc32, de, de32, hl, hl32, af, af32, sp, sp32;
+			uint16_t bc, bc32, de, de32, hl, hl32, sp, sp32, fa, fa32;
 # else
-			uint16_t bc32, bc, de32, de, hl32, hl, af32, af, sp32, sp;
+			uint16_t bc32, bc, de32, de, hl32, hl, sp32, sp, fa32, fa;
 # endif
 #endif
 		} rr;
@@ -35,19 +35,19 @@ struct z80_ {
 		struct {
 #if 16 == RRm
 # if BYTE_ORDER == LITTLE_ENDIAN
-			uint8_t c, b, e, d, l, h, f, a, spl, sph;
+			uint8_t c, b, e, d, l, h, spl, sph, f, a;
 # else
-			uint8_t b, c, d, e, h, l, a, f, spl, sph;
+			uint8_t b, c, d, e, h, l, spl, sph, a, f;
 # endif
 #else //if 32 == RRm
 # if BYTE_ORDER == LITTLE_ENDIAN
 			uint8_t c, b, bc2, bc3, e, d, de2, de3,
-			        l, h, hl2, hl3, f, a, af2, af3,
-			        spl, sph, sp2, sp3;
+			        l, h, hl2, hl3, spl, sph, sp2, sp3,
+			        a, f, fa2, fa3;
 # else
 			uint8_t bc3, bc2, b, c, de3, de2, d, e,
-			        hl3, hl2, h, l, af3, af2, a, f,
-			        sp3, sp2, spl, sph;
+			        hl3, hl2, h, l, sp3, sp2, spl, sph,
+			        fa3, fa2, f, a;
 # endif
 #endif
 		} r;
@@ -70,29 +70,29 @@ struct z80_ {
 };
 typedef struct z80_ z80_s;
 
-static const unsigned R2I[8] = {
+static const int8_t R2I[8] = {
 #if 16 == RRm
 # if BYTE_ORDER == LITTLE_ENDIAN
-	1, 0, 3, 2, 5, 4, 8, 7
+	1, 0, 3, 2, 5, 4, -1, 8
 # else
-	0, 1, 2, 3, 4, 5, 7, 8
+	0, 1, 2, 3, 4, 5, -1, 9
 # endif
 #else //if 32 == RRm
 # if BYTE_ORDER == LITTLE_ENDIAN
-	1, 0, 5, 4,  9,  8, 16, 13
+	1, 0, 5, 4,  9,  8, -1, 16
 # else
-	2, 3, 6, 7, 10, 11, 16, 14
+	2, 3, 6, 7, 10, 11, -1, 19
 # endif
 #endif
 };
 static const unsigned RR2I[4] = {
 #if 16 == RRm
-	0,    1,    2,    4
+	0,    1,    2,    3
 #else //if 32 == RRm
 # if BYTE_ORDER == LITTLE_ENDIAN
-	0,    2,    4,    8
+	0,    2,    4,    6
 # else
-	0 +2, 2 +2, 4 +2, 8 +2
+	0 +2, 2 +2, 4 +2, 6 +2
 # endif
 #endif
 };
