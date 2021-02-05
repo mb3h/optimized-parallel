@@ -1,4 +1,11 @@
 #if i386 == Em
+/* cf)
+   Z80 Family CPU User Manual (Rev.05 - Feb'05)
+	Intel IA-32(R) Architectures Software Developer's Manual,
+	- Volume 1: Basic Architecture
+	- Volume 2: Instruction Set Reference
+	- Volume 3: System Programming Guide
+ */
 /* CAUTION:
 	(*1)must be update 'reg_pc' when memory page is changed.
  */
@@ -239,8 +246,14 @@ OPFUNC(NOP) CLK1(4,1) OPEND(NOP) // (4+Tw)
 	"sahf" NL
 #define eflags2ah \
 	"lahf" NL
+#define MAND(reg) \
+	"and " reg "," A NL eflags2ah RES2ah(NF) SET2ah(HF)
 #define MXOR(reg) \
 	"xor " reg "," A NL eflags2ah RES2ah(NF "+" HF)
+#define MOR(reg) \
+	"or " reg "," A NL eflags2ah RES2ah(NF "+" HF)
+#define MCP(reg) \
+	"mov " reg ",%dh" NL "cmp %dh," A NL eflags2ah eflagsOF2cl2ah SET2ah(NF)
 #define ah2INCdl \
 	ah2eflags "inc %dl" NL eflags2ah eflagsOF2cl2ah
 #define ah2DECdl \
@@ -274,7 +287,7 @@ OPFUNC(DEC_SP) LD2dx(SP) "dec " EDX NL CLK1(6,1) dx2ST(SP) OPEND(DEC_SP)
 	OPFUNC(fn##_p) LD2cx(HL) cxREAD2dl M##fn("%dl") CLK1(7,2) OPEND(fn##_p) /* (4+Tw,3) */ \
 	OPFUNC(fn##_A) M##fn(A) CLK1(4,1) OPEND(fn##_A)
 
-OPALU(XOR)
+OPALU(AND)   OPALU(XOR)   OPALU(OR)  OPALU(CP)
 
 OPFUNC(INC_B) LD2dl(B) ah2INCdl dl2ST(B) CLK1(4,1) OPEND(INC_B) // (4+Tw)
 OPFUNC(INC_C) LD2dl(C) ah2INCdl dl2ST(C) CLK1(4,1) OPEND(INC_C)
@@ -407,10 +420,10 @@ LC "z80_opcode:" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
+	".long " OP "AND_B," OP "AND_C," OP "AND_D," OP "AND_E," OP "AND_H," OP "AND_L," OP "AND_p," OP "AND_A" NL
 	".long " OP "XOR_B," OP "XOR_C," OP "XOR_D," OP "XOR_E," OP "XOR_H," OP "XOR_L," OP "XOR_p," OP "XOR_A" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
+	".long " OP  "OR_B," OP  "OR_C," OP  "OR_D," OP  "OR_E," OP  "OR_H," OP  "OR_L," OP  "OR_p," OP  "OR_A" NL
+	".long " OP  "CP_B," OP  "CP_C," OP  "CP_D," OP  "CP_E," OP  "CP_H," OP  "CP_L," OP  "CP_p," OP  "CP_A" NL
 
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL

@@ -1,3 +1,10 @@
+/* cf)
+   Z80 Family CPU User Manual (Rev.05 - Feb'05)
+	Intel IA-32(R) Architectures Software Developer's Manual,
+	- Volume 1: Basic Architecture
+	- Volume 2: Instruction Set Reference
+	- Volume 3: System Programming Guide
+ */
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -217,26 +224,34 @@ BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
 }
 
 // 0X5
-// TODO: flag register
 static unsigned dec_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
 unsigned r8;
 	r8 = 7 & p[0] >> 3;
+unsigned retval;
 u8 *dst;
 	switch (r8) {
 	case 6:
 		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
 BUG(dst)
 		dst += PTR16OFS(m_->rr.hl);
-		*dst = (u8)(*dst +0xFF);
-		return M1 +3 +3;
+		retval = M1 +3 +3;
+		break;
 	default:
 BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
 		dst = m_->r8 + R2I[r8];
-		*dst = (u8)(*dst +0xFF);
-		return M1;
+		retval = M1;
+		break;
 	}
+	*dst = (u8)(*dst +0xFF);
+	m_->r.f &= ~(SF|ZF|HF|VF);
+	m_->r.f |= (0x7F < *dst) ? SF : 0;
+	m_->r.f |= (0x00 == *dst) ? ZF : 0;
+	m_->r.f |= (0x0F == (0x0F & *dst)) ? HF : 0;
+	m_->r.f |= (0x7F == *dst) ? VF : 0;
+	m_->r.f |= NF;
+	return retval;
 }
 
 // 0X6
@@ -300,6 +315,36 @@ BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
 	return clocks;
 }
 
+static u8 pv[16] = {
+	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0
+};
+static unsigned and_r (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned r8;
+	r8 = 7 & p[0];
+unsigned retval;
+u8 *dst;
+	switch (r8) {
+	case 6:
+		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(dst)
+		dst += PTR16OFS(m_->rr.hl);
+		retval = M1 +3;
+		break;
+	default:
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+		dst = m_->r8 + R2I[r8];
+		retval = M1;
+		break;
+	}
+	*dst = (u8)(*dst & m_->r.a);
+	m_->r.f &= ~(SF|ZF|HF|VF|NF|CF);
+	m_->r.f |= (0x7F < *dst) ? SF : 0;
+	m_->r.f |= (0x00 == *dst) ? ZF : 0;
+	m_->r.f |= !(pv[15 & *dst] ^ pv[15 & *dst >> 4]) ? PF : 0;
+	return retval;
+}
 static unsigned xor_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -324,10 +369,64 @@ BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
 	m_->r.f &= ~(SF|ZF|HF|VF|NF|CF);
 	m_->r.f |= (0x7F < *dst) ? SF : 0;
 	m_->r.f |= (0x00 == *dst) ? ZF : 0;
-static u8 pv[16] = {
-	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0
-};
 	m_->r.f |= !(pv[15 & *dst] ^ pv[15 & *dst >> 4]) ? PF : 0;
+	return retval;
+}
+static unsigned or_r (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned r8;
+	r8 = 7 & p[0];
+unsigned retval;
+u8 *dst;
+	switch (r8) {
+	case 6:
+		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(dst)
+		dst += PTR16OFS(m_->rr.hl);
+		retval = M1 +3;
+		break;
+	default:
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+		dst = m_->r8 + R2I[r8];
+		retval = M1;
+		break;
+	}
+	*dst = (u8)(*dst | m_->r.a);
+	m_->r.f &= ~(SF|ZF|HF|VF|NF|CF);
+	m_->r.f |= (0x7F < *dst) ? SF : 0;
+	m_->r.f |= (0x00 == *dst) ? ZF : 0;
+	m_->r.f |= !(pv[15 & *dst] ^ pv[15 & *dst >> 4]) ? PF : 0;
+	return retval;
+}
+static unsigned cp_r (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned r8;
+	r8 = 7 & p[0];
+unsigned retval;
+u8 *src;
+	switch (r8) {
+	case 6:
+		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(src)
+		src += PTR16OFS(m_->rr.hl);
+		retval = M1 +3;
+		break;
+	default:
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+		src = m_->r8 + R2I[r8];
+		retval = M1;
+		break;
+	}
+u8 dst;
+	dst = (u8)(m_->r.a +0x100 - *src);
+	m_->r.f &= ~(SF|ZF|HF|VF|CF);
+	m_->r.f |= (0x7F < dst) ? SF : 0;
+	m_->r.f |= (0x00 == dst) ? ZF : 0;
+	m_->r.f |= (0x80 & (dst ^ *src)) ? VF : 0;
+	m_->r.f |= NF;
+	m_->r.f |= (*src < dst) ? CF : 0;
 	return retval;
 }
 
@@ -354,10 +453,10 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
 	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
 	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
+	, and_r , and_r , and_r , and_r , and_r , and_r , and_r , and_r 
 	, xor_r , xor_r , xor_r , xor_r , xor_r , xor_r , xor_r , xor_r 
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
+	,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r 
+	,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r 
 
 	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
 	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
