@@ -1,6 +1,6 @@
 #if i386 == Em
 /* cf)
-   Z80 Family CPU User Manual (Rev.05 - Feb'05)
+	Z80 Family CPU User Manual (Rev.05 - Feb'05)
 	Intel IA-32(R) Architectures Software Developer's Manual,
 	- Volume 1: Basic Architecture
 	- Volume 2: Instruction Set Reference
@@ -246,6 +246,14 @@ OPFUNC(NOP) CLK1(4,1) OPEND(NOP) // (4+Tw)
 	"sahf" NL
 #define eflags2ah \
 	"lahf" NL
+#define MADD_A(reg) \
+	"add " reg "," A NL eflags2ah eflagsOF2cl2ah
+#define MADC_A(reg) \
+	"ror %ah" NL "adc " reg "," A NL eflags2ah eflagsOF2cl2ah
+#define MSUB(reg) \
+	"sub " reg "," A NL eflags2ah eflagsOF2cl2ah SET2ah(NF)
+#define MSBC_A(reg) \
+	"ror %ah" NL "sbb " reg "," A NL eflags2ah eflagsOF2cl2ah SET2ah(NF)
 #define MAND(reg) \
 	"and " reg "," A NL eflags2ah RES2ah(NF) SET2ah(HF)
 #define MXOR(reg) \
@@ -287,6 +295,7 @@ OPFUNC(DEC_SP) LD2dx(SP) "dec " EDX NL CLK1(6,1) dx2ST(SP) OPEND(DEC_SP)
 	OPFUNC(fn##_p) LD2cx(HL) cxREAD2dl M##fn("%dl") CLK1(7,2) OPEND(fn##_p) /* (4+Tw,3) */ \
 	OPFUNC(fn##_A) M##fn(A) CLK1(4,1) OPEND(fn##_A)
 
+OPALU(ADD_A) OPALU(ADC_A) OPALU(SUB) OPALU(SBC_A)
 OPALU(AND)   OPALU(XOR)   OPALU(OR)  OPALU(CP)
 
 OPFUNC(INC_B) LD2dl(B) ah2INCdl dl2ST(B) CLK1(4,1) OPEND(INC_B) // (4+Tw)
@@ -416,14 +425,14 @@ LC "z80_opcode:" NL
 	".long " OP "LD_p_B," OP "LD_p_C," OP "LD_p_D," OP "LD_p_E," OP "LD_p_H," OP "LD_p_L," OP "NOP,"    OP "LD_p_A" NL
 	".long " OP "LD_A_B," OP "LD_A_C," OP "LD_A_D," OP "LD_A_E," OP "LD_A_H," OP "LD_A_L," OP "LD_A_p," OP    "NOP" NL
 
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "AND_B," OP "AND_C," OP "AND_D," OP "AND_E," OP "AND_H," OP "AND_L," OP "AND_p," OP "AND_A" NL
-	".long " OP "XOR_B," OP "XOR_C," OP "XOR_D," OP "XOR_E," OP "XOR_H," OP "XOR_L," OP "XOR_p," OP "XOR_A" NL
-	".long " OP  "OR_B," OP  "OR_C," OP  "OR_D," OP  "OR_E," OP  "OR_H," OP  "OR_L," OP  "OR_p," OP  "OR_A" NL
-	".long " OP  "CP_B," OP  "CP_C," OP  "CP_D," OP  "CP_E," OP  "CP_H," OP  "CP_L," OP  "CP_p," OP  "CP_A" NL
+	".long " OP "ADD_A_B," OP "ADD_A_C," OP "ADD_A_D," OP "ADD_A_E," OP "ADD_A_H," OP "ADD_A_L," OP "ADD_A_p," OP "ADD_A_A" NL
+	".long " OP "ADC_A_B," OP "ADC_A_C," OP "ADC_A_D," OP "ADC_A_E," OP "ADC_A_H," OP "ADC_A_L," OP "ADC_A_p," OP "ADC_A_A" NL
+	".long " OP   "SUB_B," OP   "SUB_C," OP   "SUB_D," OP   "SUB_E," OP   "SUB_H," OP   "SUB_L," OP   "SUB_p," OP   "SUB_A" NL
+	".long " OP "SBC_A_B," OP "SBC_A_C," OP "SBC_A_D," OP "SBC_A_E," OP "SBC_A_H," OP "SBC_A_L," OP "SBC_A_p," OP "SBC_A_A" NL
+	".long " OP   "AND_B," OP   "AND_C," OP   "AND_D," OP   "AND_E," OP   "AND_H," OP   "AND_L," OP   "AND_p," OP   "AND_A" NL
+	".long " OP   "XOR_B," OP   "XOR_C," OP   "XOR_D," OP   "XOR_E," OP   "XOR_H," OP   "XOR_L," OP   "XOR_p," OP   "XOR_A" NL
+	".long " OP    "OR_B," OP    "OR_C," OP    "OR_D," OP    "OR_E," OP    "OR_H," OP    "OR_L," OP    "OR_p," OP    "OR_A" NL
+	".long " OP    "CP_B," OP    "CP_C," OP    "CP_D," OP    "CP_E," OP    "CP_H," OP    "CP_L," OP    "CP_p," OP    "CP_A" NL
 
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
