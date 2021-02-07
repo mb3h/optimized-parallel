@@ -315,6 +315,35 @@ BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
 	return clocks;
 }
 
+static unsigned sub_r (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned r8;
+	r8 = 7 & p[0];
+unsigned retval;
+u8 *src;
+	switch (r8) {
+	case 6:
+		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(src)
+		src += PTR16OFS(m_->rr.hl);
+		retval = M1 +3;
+		break;
+	default:
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+		src = m_->r8 + R2I[r8];
+		retval = M1;
+		break;
+	}
+	m_->r.a = (u8)(m_->r.a +0x100 - *src);
+	m_->r.f &= ~(SF|ZF|HF|VF|CF);
+	m_->r.f |= (0x7F < dst) ? SF : 0;
+	m_->r.f |= (0x00 == dst) ? ZF : 0;
+	m_->r.f |= (0x80 & (dst ^ *src)) ? VF : 0;
+	m_->r.f |= NF;
+	m_->r.f |= (*src < dst) ? CF : 0;
+	return retval;
+}
 static u8 pv[16] = {
 	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0
 };
@@ -451,7 +480,7 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 
 	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
 	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
+	, sub_r , sub_r , sub_r , sub_r , sub_r , sub_r , sub_r , sub_r
 	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
 	, and_r , and_r , and_r , and_r , and_r , and_r , and_r , and_r 
 	, xor_r , xor_r , xor_r , xor_r , xor_r , xor_r , xor_r , xor_r 
