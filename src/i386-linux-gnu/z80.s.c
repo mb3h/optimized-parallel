@@ -6,7 +6,14 @@
 	- Volume 2: Instruction Set Reference
 	- Volume 3: System Programming Guide
  */
-/* CAUTION:
+/* NOTE:
+	This emulation module (z80.s.c) got many hints from Z80_x86.cpp written by cisc.
+	In Z80 emulation code I know, his x86 native module was most lightweight, most
+	optimized and most suitable bit layout. I expand memory pager and fetch state,
+	fixed I/O switch timing resolution and modified other several for generality,
+	however his great achievments never fade.
+
+	CAUTION:
 	(*1)must be update 'reg_pc' when memory page is changed.
  */
 #include <stdint.h>
