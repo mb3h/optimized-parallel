@@ -315,6 +315,64 @@ BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
 	return clocks;
 }
 
+static unsigned add_r (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned r8;
+	r8 = 7 & p[0];
+unsigned retval;
+u8 *src;
+	switch (r8) {
+	case 6:
+		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(src)
+		src += PTR16OFS(m_->rr.hl);
+		retval = M1 +3;
+		break;
+	default:
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+		src = m_->r8 + R2I[r8];
+		retval = M1;
+		break;
+	}
+	m_->r.a = (u8)(m_->r.a + *src);
+	m_->r.f &= ~(SF|ZF|HF|VF|CF);
+	m_->r.f |= (0x7F < m_->r.a) ? SF : 0;
+	m_->r.f |= (0x00 == m_->r.a) ? ZF : 0;
+	m_->r.f |= (0x80 & (m_->r.a ^ *src)) ? VF : 0;
+	m_->r.f |= (m_->r.a < *src) ? CF : 0;
+	return retval;
+}
+static unsigned adc_r (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned r8;
+	r8 = 7 & p[0];
+unsigned retval;
+u8 *src;
+	switch (r8) {
+	case 6:
+		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(src)
+		src += PTR16OFS(m_->rr.hl);
+		retval = M1 +3;
+		break;
+	default:
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+		src = m_->r8 + R2I[r8];
+		retval = M1;
+		break;
+	}
+u8 cy;
+	cy = (CF & m_->r.f) ? 1 : 0;
+	m_->r.a = (u8)(m_->r.a + *src + cy);
+	m_->r.f &= ~(SF|ZF|HF|VF|CF);
+	m_->r.f |= (0x7F < m_->r.a) ? SF : 0;
+	m_->r.f |= (0x00 == m_->r.a) ? ZF : 0;
+	m_->r.f |= (0x80 & (m_->r.a ^ *src)) ? VF : 0;
+	m_->r.f |= (m_->r.a < *src + cy) ? CF : 0;
+	return retval;
+}
 static unsigned sub_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -337,11 +395,42 @@ BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
 	}
 	m_->r.a = (u8)(m_->r.a +0x100 - *src);
 	m_->r.f &= ~(SF|ZF|HF|VF|CF);
-	m_->r.f |= (0x7F < dst) ? SF : 0;
-	m_->r.f |= (0x00 == dst) ? ZF : 0;
-	m_->r.f |= (0x80 & (dst ^ *src)) ? VF : 0;
+	m_->r.f |= (0x7F < m_->r.a) ? SF : 0;
+	m_->r.f |= (0x00 == m_->r.a) ? ZF : 0;
+	m_->r.f |= (0x80 & (m_->r.a ^ *src)) ? VF : 0;
 	m_->r.f |= NF;
-	m_->r.f |= (*src < dst) ? CF : 0;
+	m_->r.f |= (0xFF < m_->r.a + *src) ? CF : 0;
+	return retval;
+}
+static unsigned sbc_r (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned r8;
+	r8 = 7 & p[0];
+unsigned retval;
+u8 *src;
+	switch (r8) {
+	case 6:
+		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
+BUG(src)
+		src += PTR16OFS(m_->rr.hl);
+		retval = M1 +3;
+		break;
+	default:
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+		src = m_->r8 + R2I[r8];
+		retval = M1;
+		break;
+	}
+u8 cy;
+	cy = (CF & m_->r.f) ? 1 : 0;
+	m_->r.a = (u8)(m_->r.a +0x100 - cy - *src);
+	m_->r.f &= ~(SF|ZF|HF|VF|CF);
+	m_->r.f |= (0x7F < m_->r.a) ? SF : 0;
+	m_->r.f |= (0x00 == m_->r.a) ? ZF : 0;
+	m_->r.f |= (0x80 & (m_->r.a ^ *src)) ? VF : 0;
+	m_->r.f |= NF;
+	m_->r.f |= (0xFF < m_->r.a + *src + cy) ? CF : 0;
 	return retval;
 }
 static u8 pv[16] = {
@@ -478,10 +567,10 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, NULL  , ld_r_r
 	, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r
 
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
+	, add_r , add_r , add_r , add_r , add_r , add_r , add_r , add_r
+	, adc_r , adc_r , adc_r , adc_r , adc_r , adc_r , adc_r , adc_r
 	, sub_r , sub_r , sub_r , sub_r , sub_r , sub_r , sub_r , sub_r
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL 
+	, sbc_r , sbc_r , sbc_r , sbc_r , sbc_r , sbc_r , sbc_r , sbc_r
 	, and_r , and_r , and_r , and_r , and_r , and_r , and_r , and_r 
 	, xor_r , xor_r , xor_r , xor_r , xor_r , xor_r , xor_r , xor_r 
 	,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r 
