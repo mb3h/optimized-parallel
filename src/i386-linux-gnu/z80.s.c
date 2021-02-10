@@ -12,8 +12,7 @@
 	optimized and most suitable bit layout. I expand memory pager and fetch state,
 	fixed I/O switch timing resolution and modified other several for generality,
 	however his great achievments never fade.
-
-	CAUTION:
+   CAUTION:
 	(*1)must be update 'reg_pc' when memory page is changed.
  */
 #include <stdint.h>
@@ -196,7 +195,7 @@ M "mem:" NL
 	);
 
 LCFUNC(cxREAD2dl)
-	"mov " ECX "," EBX "" NL
+	"mov " ECX "," EBX NL
 	"shr $13 -2," ECX NL
 	"and $7 << 2," ECX NL // 7 = (1 << 16 -13) -1
 	"mov " M "raw_or_rwfn + " M "mem(" CPU "," ECX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
@@ -206,11 +205,32 @@ LCEND(cxREAD2dl)
 
 LCFUNC(cxREAD2dx)
 	/* TODO: */
+	"mov " ECX "," EBX NL
+	"lea 1(" EBX ")," EDX NL
+	"test $0x1FFF," EDX NL // 0x1FFF = (1 << 13) -1
+	"jz " LC "cxREAD2dx" "_ladder_two_pages" NL
+	"shr $13 -2," EBX NL
+	"and $7 << 2," EBX NL // 7 = (1 << 16 -13) -1
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," EBX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+//LC "cxREAD2dx" "_raw:" NL
+	"and $0x1FFF," EDX NL // 0x1FFF = (1 << 13) -1
+	"movzwl -1(" ECX "," EDX ",1)," EDX NL
+	"ret" LF
+LC "cxREAD2dx" "_ladder_two_pages:" NL
+	"push " EBX NL
+	"call " LC "cxREAD2dl" NL
+	"pop " EBX NL
+	"inc " EBX NL
+	"push " EDX NL
+	"call " LC "cxREAD2dl" NL
+	"pop " EBX NL
+	"shl $8," EDX NL
+	"or " EBX "," EDX NL
 LCEND(cxREAD2dx)
 
 // broken: ebx
 LCFUNC(dl2WRITEcx)
-	"mov " ECX "," EBX "" NL
+	"mov " ECX "," EBX NL
 	"shr $13 -2," ECX NL
 	"and $7 << 2," ECX NL // 7 = (1 << 16 -13) -1
 	"mov " M "raw_or_rwfn + " M "mem(" CPU "," ECX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
@@ -218,8 +238,28 @@ LCFUNC(dl2WRITEcx)
 	"mov %dl,(" ECX "," EBX ",1)" NL
 LCEND(dl2WRITEcx)
 
+// broken: ebx edx
 LCFUNC(dx2WRITEcx)
-	/* TODO: */
+	"jz " LC "dx2WRITEcx" "_ladder_two_pages" NL
+	"lea 1(" ECX ")," EBX NL // b:addr+1(b15..b0)
+	"test $0x1FFF," EBX NL // 0x1FFF = (1 << 13) -1
+	"jz " LC "dx2WRITEcx" "_ladder_two_pages" NL
+	"shr $13 -2," ECX NL
+	"and $7 << 2," ECX NL // 7 = (1 << 16 -13) -1
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," ECX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+//LC "dx2WRITEcx" "_raw:" NL
+	"and $0x1FFF," EBX NL // 0x1FFF = (1 << 13) -1
+	"mov %dx,-1(" ECX "," EBX ",1)" NL
+	"ret" LF
+LC "dx2WRITEcx" "_ladder_two_pages:" NL
+	"push " EDX NL
+	"push " ECX NL
+	"call " LC "dl2WRITEcx" NL
+	"pop " ECX NL
+	"inc " ECX NL
+	"pop " EDX NL
+	"shr $8," EDX NL
+	"jmp " LC "dl2WRITEcx" NL
 LCEND(dx2WRITEcx)
 
 #define cxREAD2dl \
@@ -277,10 +317,10 @@ OPFUNC(NOP) CLK1(4,1) OPEND(NOP) // (4+Tw)
 	"mov %ah,%cl" NL "add " l ",%dl" NL "adc " h ",%dh" NL \
 	eflags2ah "and $(0xff - (" HF "+" NF "+" CF ")),%cl" NL "and $(" HF "+" CF "),%ah" NL "or %cl,%ah" NL
 
-OPFUNC(ADD_HL_BC) LD2dx(HL) ah2ADDdx(B,C)     dl2ST(H) CLK1(11,3) dh2ST(L) OPEND(ADD_HL_BC) // (4+Tw,4,3)
-OPFUNC(ADD_HL_DE) LD2dx(HL) ah2ADDdx(D,E)     dl2ST(H) CLK1(11,3) dh2ST(L) OPEND(ADD_HL_DE)
-OPFUNC(ADD_HL_HL) LD2dx(HL) ah2ADDdx(H,L)     dl2ST(H) CLK1(11,3) dh2ST(L) OPEND(ADD_HL_HL)
-OPFUNC(ADD_HL_SP) LD2dx(HL) ah2ADDdx(SPH,SPL) dl2ST(H) CLK1(11,3) dh2ST(L) OPEND(ADD_HL_SP)
+OPFUNC(ADD_HL_BC) LD2dx(HL) ah2ADDdx(B,C)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_BC) // (4+Tw,4,3)
+OPFUNC(ADD_HL_DE) LD2dx(HL) ah2ADDdx(D,E)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_DE)
+OPFUNC(ADD_HL_HL) LD2dx(HL) ah2ADDdx(H,L)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_HL)
+OPFUNC(ADD_HL_SP) LD2dx(HL) ah2ADDdx(SPH,SPL) dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_SP)
 
 OPFUNC(INC_BC) LD2dx(BC) "inc " EDX NL CLK1(6,1) dx2ST(BC) OPEND(INC_BC) // (6+Tw)
 OPFUNC(INC_DE) LD2dx(DE) "inc " EDX NL CLK1(6,1) dx2ST(DE) OPEND(INC_DE)

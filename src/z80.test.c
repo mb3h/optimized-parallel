@@ -5,6 +5,7 @@
 #include "z80priv.h"
 
 #include "assert.h"
+#include "portab.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
@@ -12,6 +13,127 @@
 typedef uint32_t u32;
 typedef  uint8_t u8;
 typedef uint16_t u16;
+
+///////////////////////////////////////////////////////////////////////////////
+// recycle
+
+static unsigned tohex (int c)
+{
+	if ('0' <= c && c <= '9')
+		return (unsigned)(c - '0');
+	else if ('A' <= c && c <= 'F')
+		return (unsigned)(c - 'A' +10);
+	else if ('a' <= c && c <= 'f')
+		return (unsigned)(c - 'a' +10);
+	return (unsigned)-1;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// recycle reserved
+
+static size_t z80a_disasm_tostr (const void *src_, u16 pc, char *dst, size_t cb)
+{
+static const char *r8[] = {
+	"B", "C", "D", "E", "H", "L", "(HL)", "A"
+};
+static const char *r16[] = {
+	"BC", "DE", "HL", "SP"
+};
+static const char *regop[] = {
+	"ADD", "ADC", "SUB", "SBC", "AND", "XOR", "OR", "CP"
+};
+static const char *regop8[] = {
+	"A,", "A,", "", "A,", "", "", "", ""
+};
+BUG(src_ && (NULL == dst || 4 +1 +9 +1 +9 < cb)) // 9 = len('[IX-0FFh]')
+const u8 *src, *src0;
+	src = src0 = (const u8 *)src_;
+//char *dst_end;
+//	dst_end = dst + cb;
+	*dst = '\0';
+int x, y, z;
+	x = 3 & *src >> 6, y = 7 & *src >> 3, z = 7 & *src;
+u16 nn;
+	switch (x) {
+	case 0:
+		switch (z) {
+		case 1:
+			if (! (1 & y)) {
+				nn = load_le16 (++src);
+				++src;
+				if (dst)
+					sprintf (dst, "%-4s %s,%s%04Xh", "LD", r16[y >> 1], (0x9FFF < nn) ? "0" : "", nn);
+			}
+			else {
+				if (dst)
+					sprintf (dst, "%-4s %s,%s", "ADD", "HL", r16[y >> 1]);
+			}
+			break;
+		case 2:
+			if (! (4 & y)) {
+				if (! (1 & y)) {
+					if (dst)
+						sprintf (dst, "%-4s (%s),%s", "LD", r16[y >> 1], "A");
+				}
+				else {
+					if (dst)
+						sprintf (dst, "%-4s %s,(%s)", "LD", "A", r16[y >> 1]);
+				}
+			}
+			else {
+				nn = load_le16 (++src);
+				++src;
+				if (! (1 & y)) {
+					if (dst)
+						sprintf (dst, "%-4s (%s%04Xh),%s", "LD", (0x9FFF < nn) ? "0" : "", nn, !(2 & y) ? "HL" : "A");
+				}
+				else {
+					if (dst)
+						sprintf (dst, "%-4s %s,(%s%04Xh)", "LD", !(2 & y) ? "HL" : "A", (0x9FFF < nn) ? "0" : "", nn);
+				}
+			}
+			break;
+		case 3:
+			if (dst)
+				sprintf (dst, "%-4s %s", (1 & y) ? "DEC" : "INC", r16[y >> 1]);
+			break;
+		case 4:
+			if (dst)
+				sprintf (dst, "%-4s %s", "INC", r8[y]);
+			break;
+		case 5:
+			if (dst)
+				sprintf (dst, "%-4s %s", "DEC", r8[y]);
+			break;
+		case 6:
+			sprintf (dst, "%-4s %s", "LD", r8[y]);
+			break;
+		case 0:
+		case 7:
+			break;
+		}
+		break;
+	case 1:
+		if (6 == y && 6 == z) {
+			if (dst)
+				strcpy (dst, "HALT");
+			break;
+		}
+		if (dst)
+			sprintf (dst, "%-4s %s,%s", "LD", r8[y], r8[z]);
+		break;
+	case 2:
+		if (dst)
+			sprintf (dst, "%-4s %s%s", regop[y], regop8[y], r8[z]);
+		break;
+	case 3:
+		break;
+	}
+	return src +1 - src0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// cannot recycle
 
 static void hello_world_test (z80_s *m_)
 {
@@ -39,44 +161,120 @@ BUG(0 == strcmp ("Hello world!", (const char *)mem5))
 	fprintf (stderr, VTGG "%s" VTO "\n", (const char *)mem5);
 }
 
-static unsigned tohex (int c)
+static size_t changed_flags_tostr (z80_s *m_, const z80_s *old, char *dst, size_t cb)
 {
-	if ('0' <= c && c <= '9')
-		return (unsigned)(c - '0');
-	else if ('A' <= c && c <= 'F')
-		return (unsigned)(c - 'A' +10);
-	else if ('a' <= c && c <= 'f')
-		return (unsigned)(c - 'a' +10);
-	return (unsigned)-1;
+BUG(m_ && dst && 1 +8 < cb)
+char *begin/*, *end*/;
+	begin = dst/*, end = dst + cb*/;
+u8 old_f;
+	old_f = (NULL == old) ? 0x00 : old->r.f;
+
+u8 mask;
+	for (mask = 0x80; 0 < mask; mask >>= 1) {
+		if (mask & (old_f ^ m_->r.f))
+			*dst++ = (mask & m_->r.f) ? '1' : '0';
+		else
+			*dst++ = '-';
+	}
+	return dst - begin;
 }
-static void each_opcode_test (z80_s *m_)
+static size_t changed_reg_tostr (z80_s *m_, const z80_s *old, const char *sep, char *dst, size_t cb)
+{
+BUG(m_ && sep && dst && 0 < cb)
+char *begin, *end;
+	begin = dst, end = dst + cb;
+	*dst = '\0';
+const char *prefix;
+int changed;
+	// A
+BUG(dst +3 +2 < end)
+	changed  = (old && old->r.a == m_->r.a || NULL == old && 0 == m_->r.a) ? 0 : 1;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (1 == changed)
+		sprintf (dst, "%s" "A=" "%02X", prefix, m_->r.a);
+	dst = strchr (dst, '\0');
+	// BC
+BUG(dst +3 +2 +3 +2 < end)
+	changed  = (old && old->r.c == m_->r.c || NULL == old && 0 == m_->r.c) ? 0 : 1;
+	changed |= (old && old->r.b == m_->r.b || NULL == old && 0 == m_->r.b) ? 0 : 2;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (3 == changed)
+		sprintf (dst, "%s" "BC=" "%04X", prefix, m_->rr.bc);
+	else if (2 == changed)
+		sprintf (dst, "%s" "B=" "%02X", prefix, m_->r.b);
+	else if (1 == changed)
+		sprintf (dst, "%s" "C=" "%02X", prefix, m_->r.c);
+	dst = strchr (dst, '\0');
+	// DE
+BUG(dst +3 +2 +3 +2 < end)
+	changed  = (old && old->r.e == m_->r.e || NULL == old && 0 == m_->r.e) ? 0 : 1;
+	changed |= (old && old->r.d == m_->r.d || NULL == old && 0 == m_->r.d) ? 0 : 2;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (3 == changed)
+		sprintf (dst, "%s" "DE=" "%04X", prefix, m_->rr.de);
+	else if (2 == changed)
+		sprintf (dst, "%s" "D=" "%02X", prefix, m_->r.d);
+	else if (1 == changed)
+		sprintf (dst, "%s" "E=" "%02X", prefix, m_->r.e);
+	dst = strchr (dst, '\0');
+	// HL
+BUG(dst +3 +2 +3 +2 < end)
+	changed  = (old && old->r.l == m_->r.l || NULL == old && 0 == m_->r.l) ? 0 : 1;
+	changed |= (old && old->r.h == m_->r.h || NULL == old && 0 == m_->r.h) ? 0 : 2;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (3 == changed)
+		sprintf (dst, "%s" "HL=" "%04X", prefix, m_->rr.hl);
+	else if (2 == changed)
+		sprintf (dst, "%s" "H=" "%02X", prefix, m_->r.h);
+	else if (1 == changed)
+		sprintf (dst, "%s" "L=" "%02X", prefix, m_->r.l);
+	dst = strchr (dst, '\0');
+	// SP
+BUG(dst +4 +4 < end)
+	changed  = (old && old->rr.sp == m_->rr.sp || NULL == old && 0 == m_->rr.sp) ? 0 : 3;
+	changed |= (old && (u16)(m_->rr.sp +8 - old->rr.sp) < 8) ? 4 : 0;
+	changed |= (old && (u16)(m_->rr.sp    - old->rr.sp) < 8) ? 8 : 0;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (11 == changed)
+		sprintf (dst, "%s" "SP=" "+%d", prefix, m_->rr.sp - old->rr.sp);
+	else if (7 == changed)
+		sprintf (dst, "%s" "SP=" "-%d", prefix, old->rr.sp - m_->rr.sp);
+	else if (3 == changed)
+		sprintf (dst, "%s" "SP=" "%04X", prefix, m_->rr.sp);
+	dst = strchr (dst, '\0');
+	return dst - begin;
+}
+#define SEP "." // for 'sort -kN'
+static void each_opcode_test (z80_s *m_, const char *test_text_path)
 {
 FILE *fp;
-	if (NULL == (fp = fopen ("./z80.c" ".test.in", "r")))
+	if (NULL == (fp = fopen (test_text_path, "r")))
 		return;
 size_t line;
 	line = 0;
 	while (!feof (fp)) {
-char text[128];
+char text[256], *text_end;
+	text_end = text + sizeof(text);
 	// test-code input
-		if (NULL == (fgets (text, sizeof(text), fp)))
+		if (NULL == (fgets (text, text_end - text, fp)))
 			break;
-		text[sizeof(text) -1] = '\0';
+		text_end[-1] = '\0';
 char *tail;
 		tail = strchr (text, '\0');
 		while (text < tail && strchr ("\r\n", tail[-1]))
 			*--tail = '\0';
 		if ('#' == *text)
 			continue;
+		memset (m_->r16, 0, sizeof(m_->r16));
+		m_->pc = 0;
 	// caption output
 		if (1 == ++line % 32)
-	puts ("# " "SZ-H-PNC CLK CODE     CHANGED");
+printf ("# %13s SZ-H-PNC %4s SZ-H-PNC CLK  %-19s %-8s (disasm)" "\n", "(INITIAL)", "", "(RESULT)", "CODE");
 		// SZ-H-PNC
 char *p;
 		p = text;
 		while (strchr (" \t", *p))
 			++p;
-		m_->r.f = 0;
 		while (strchr ("01", *p))
 			m_->r.f = m_->r.f << 1 | (u8)(*p++ - '0');
 		// INIT [A000-BFFF] <- AA
@@ -139,24 +337,70 @@ unsigned executed;
 	// result output
 char *dst;
 		dst = text;
-		// SZ-H-PNC
-		strcpy (dst, "  ");
-		dst = strchr (dst, '\0');
-u8 mask;
-		for (mask = 0x80; 0 < mask; mask >>= 1) {
-			if (mask & (old.r.f ^ m_->r.f))
-				*dst++ = (mask & m_->r.f) ? '1' : '0';
-			else
-				*dst++ = '-';
+size_t cb;
+		// A BC DE HL SP ... [before]
+		cb = changed_reg_tostr (&old, NULL, SEP, dst, text_end - dst);
+		if (cb < 2) {
+			strcpy (dst, " ."); // for 'sort -kN'
+			cb = strlen (dst);
 		}
+		if (cb < 15) {
+			memmove (dst +15 - cb, dst, cb);
+			memset (dst, ' ', 15 - cb);
+			cb = 15;
+		}
+		dst += cb;
+		// SZ-H-PNC [before]
+		*dst++ = ' ';
+		dst += changed_flags_tostr (&old, NULL, dst, text_end - dst);
+		// 
+		strcpy (dst, "  => ");
+		dst = strchr (dst, '\0');
+		// SZ-H-PNC
+		*dst++ = ' ';
+		dst += changed_flags_tostr (m_, &old, dst, text_end - dst);
 		// CLK
 		*dst++ = ' ';
 		sprintf (dst, "%3d", executed);
 		dst = strchr (dst, '\0');
+		cb = 0;
+		strcpy (dst, "  ");
+		dst = strchr (dst, '\0');
+		// A BC DE HL SP ...
+		cb += changed_reg_tostr (m_, &old, SEP, dst +cb, text_end - (dst +cb));
+		// PC
+		if (! (0xB000 < m_->pc && m_->pc <= 0xB004)) {
+			if (0 < cb)
+				dst[cb++] = SEP[0];
+			sprintf (dst +cb, "PC=%04X", m_->pc);
+			cb += strlen (dst +cb);
+		}
+		// TEST DATA [A000-A0FF]
+		for (addr = 0x0000; addr < 0x0100; ++addr) {
+			if (255 - (u8)addr == mem5[addr])
+				continue;
+			if (0 < cb)
+				dst[cb++] = SEP[0];
+			if (addr +1 < 0x0100 && !(255 - (u8)(addr +1) == mem5[addr +1])) {
+				sprintf (dst +cb, "[%04X,2]=%02X%02X->%04X", 0xA000 + addr, 255 - (u8)(addr +1), 255 - (u8)addr, load_le16 (mem5 + addr));
+				++addr;
+			}
+			else
+				sprintf (dst +cb, "[%04X]=%02X->%02X", 0xA000 + addr, 255 - (u8)addr, *(mem5 + addr));
+			cb += strlen (dst +cb);
+		}
+		if (cb < 2) {
+			cb = 0;
+			dst[cb++] = '.'; // for 'sort -kN'
+		}
+		if (cb < 19) {
+			memset (dst +cb, ' ', 19 - cb);
+			cb = 19;
+		}
+		dst += cb;
 		// CODE
 		*dst++ = ' ';
 		p = q = &mem5[0x1000];
-size_t cb;
 		cb = (0xB000 < m_->pc && m_->pc < 0xB004) ? m_->pc - 0xB000 : 4;
 size_t i;
 		for (i = 0; i < 4; ++i) {
@@ -166,78 +410,13 @@ size_t i;
 				strcpy (dst, "  ");
 			dst += 2;
 		}
-		// PC
-		if (! (0xB000 < m_->pc && m_->pc <= 0xB004)) {
-			sprintf (dst, " PC=%04X", m_->pc);
-			dst = strchr (dst, '\0');
-		}
-		// A
-		if (! (old.r.a == m_->r.a)) {
-			sprintf (dst, " A=%02X", m_->r.a);
-			dst = strchr (dst, '\0');
-		}
-		// BC
-		if (!(old.r.b == m_->r.b || old.r.c == m_->r.c)) {
-			sprintf (dst, " BC=%04X", m_->rr.bc);
-			dst = strchr (dst, '\0');
-		}
-		else {
-			if (! (old.r.b == m_->r.b)) {
-				sprintf (dst, " B=%02X", m_->r.b);
-				dst = strchr (dst, '\0');
-			}
-			if (! (old.r.c == m_->r.c)) {
-				sprintf (dst, " C=%02X", m_->r.c);
-				dst = strchr (dst, '\0');
-			}
-		}
-		// DE
-		if (!(old.r.d == m_->r.d || old.r.e == m_->r.e)) {
-			sprintf (dst, " DE=%04X", m_->rr.de);
-			dst = strchr (dst, '\0');
-		}
-		else {
-			if (! (old.r.d == m_->r.d)) {
-				sprintf (dst, " D=%02X", m_->r.d);
-				dst = strchr (dst, '\0');
-			}
-			if (! (old.r.e == m_->r.e)) {
-				sprintf (dst, " E=%02X", m_->r.e);
-				dst = strchr (dst, '\0');
-			}
-		}
-		// HL
-		if (!(old.r.h == m_->r.h || old.r.l == m_->r.l)) {
-			sprintf (dst, " HL=%04X", m_->rr.hl);
-			dst = strchr (dst, '\0');
-		}
-		else {
-			if (! (old.r.h == m_->r.h)) {
-				sprintf (dst, " H=%02X", m_->r.h);
-				dst = strchr (dst, '\0');
-			}
-			if (! (old.r.l == m_->r.l)) {
-				sprintf (dst, " L=%02X", m_->r.l);
-				dst = strchr (dst, '\0');
-			}
-		}
-		// SP
-		if (! (old.rr.sp == m_->rr.sp)) {
-			sprintf (dst, " SP=%04X", m_->rr.sp);
-			dst = strchr (dst, '\0');
-		}
-		// TEST DATA [A000-A0FF]
-		for (addr = 0x0000; addr < 0x0100; ++addr) {
-			if (255 - (u8)addr == mem5[addr])
-				continue;
-			if (addr +1 < 0x0100 && !(255 - (u8)(addr +1) == mem5[addr +1]))
-				sprintf (dst, " [%04X,2]=%04X", 0xA000 + addr, mem5[addr +1] << 8 | mem5[addr]);
-			else
-				sprintf (dst, " [%04X]=%02X", 0xA000 + addr, mem5[addr]);
-			dst = strchr (dst, '\0');
-		}
+		// mnemonic
+		*dst++ = ' ';
+		z80a_disasm_tostr (mem5 +0x1000, m_->pc, dst, text_end - dst);
+		dst = strchr (dst, '\0');
+		//
 		*dst = '\0';
-		puts (text);
+puts (text);
 	}
 	fclose (fp);
 }
@@ -265,7 +444,7 @@ BUG(&m_->rr.de == (u16 *)&m_->r.d)
 		hello_world_test (m_);
 		break;
 	case 1:
-		each_opcode_test (m_);
+		each_opcode_test (m_, "./z80.c" ".test.in");
 		break;
 	}
 	return 0;

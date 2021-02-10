@@ -17,6 +17,7 @@
 #endif
 
 #include "assert.h"
+#include "portab.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
@@ -38,6 +39,8 @@ typedef uint16_t u16;
 #ifndef Em // emulation not optimized.
 # define PTR16(mmap8, addr) ((mmap8)[7 & (addr) >> 13].raw_or_rwfn)
 # define PTR16OFS(addr) (0x1FFF & (addr))
+
+///////////////////////////////////////////////////////////////////////////////
 
 // FETCH
 static u8 fetch_to_n (z80_s *m_)
@@ -126,11 +129,11 @@ static unsigned ld_pnn_hl (z80_s *m_, const u8 *p)
 BUG(m_ && p)
 u16 nn;
 	nn = fetch_to_nn (m_);
-u16 *dst;
-	dst = (u16 *)PTR16(m_->mem, nn);
+u8 *dst;
+	dst = (u8 *)PTR16(m_->mem, nn);
 BUG(dst)
 	dst += PTR16OFS(nn);
-	*dst = m_->rr.hl;
+	store_le16 (dst, m_->rr.hl);
 	return M1 +3 +3 +3 +3;
 }
 static unsigned ld_hl_pnn (z80_s *m_, const u8 *p)
@@ -138,11 +141,11 @@ static unsigned ld_hl_pnn (z80_s *m_, const u8 *p)
 BUG(m_ && p)
 u16 nn;
 	nn = fetch_to_nn (m_);
-const u16 *src;
-	src = (const u16 *)PTR16(m_->mem, nn);
+const u8 *src;
+	src = (const u8 *)PTR16(m_->mem, nn);
 BUG(src)
 	src += PTR16OFS(nn);
-	m_->rr.hl = *src;
+	m_->rr.hl = load_le16 (src);
 	return M1 +3 +3 +3 +3;
 }
 static unsigned ld_pnn_a (z80_s *m_, const u8 *p)
