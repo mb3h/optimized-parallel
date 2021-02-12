@@ -340,7 +340,8 @@ OPFUNC(DEC_SP) LD2dx(SP) "dec " EDX NL CLK1(6,1) dx2ST(SP) OPEND(DEC_SP)
 	OPFUNC(fn##_H) M##fn(H) CLK1(4,1) OPEND(fn##_H) \
 	OPFUNC(fn##_L) M##fn(L) CLK1(4,1) OPEND(fn##_L) \
 	OPFUNC(fn##_p) LD2cx(HL) cxREAD2dl M##fn("%dl") CLK1(7,2) OPEND(fn##_p) /* (4+Tw,3) */ \
-	OPFUNC(fn##_A) M##fn(A) CLK1(4,1) OPEND(fn##_A)
+	OPFUNC(fn##_A) M##fn(A) CLK1(4,1) OPEND(fn##_A) \
+	OPFUNC(fn##_N) FETCH2dl(fn##_N) M##fn("%dl") CLK1(7,2) OPEND(fn##_N) /* (4+Tw,3) */
 
 OPALU(ADD_A) OPALU(ADC_A) OPALU(SUB) OPALU(SBC_A)
 OPALU(AND)   OPALU(XOR)   OPALU(OR)  OPALU(CP)
@@ -481,14 +482,14 @@ LC "z80_opcode:" NL
 	".long " OP    "OR_B," OP    "OR_C," OP    "OR_D," OP    "OR_E," OP    "OR_H," OP    "OR_L," OP    "OR_p," OP    "OR_A" NL
 	".long " OP    "CP_B," OP    "CP_C," OP    "CP_D," OP    "CP_E," OP    "CP_H," OP    "CP_L," OP    "CP_p," OP    "CP_A" NL
 
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "ADD_A_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "ADC_A_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "SUB_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "OR_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
 
 	".size " LC "z80_opcode" ",.-" LC "z80_opcode" NL
 );

@@ -53,6 +53,7 @@ const u8 *src, *src0;
 	*dst = '\0';
 int x, y, z;
 	x = 3 & *src >> 6, y = 7 & *src >> 3, z = 7 & *src;
+u8 n;
 u16 nn;
 	switch (x) {
 	case 0:
@@ -106,7 +107,8 @@ u16 nn;
 				sprintf (dst, "%-4s %s", "DEC", r8[y]);
 			break;
 		case 6:
-			sprintf (dst, "%-4s %s", "LD", r8[y]);
+			n = *++src;
+			sprintf (dst, "%-4s %s,%s%02Xh", "LD", r8[y], (0x9F < n) ? "0" : "", n);
 			break;
 		case 0:
 		case 7:
@@ -127,6 +129,21 @@ u16 nn;
 			sprintf (dst, "%-4s %s%s", regop[y], regop8[y], r8[z]);
 		break;
 	case 3:
+		switch (z) {
+		case 6:
+			n = *++src;
+			if (dst)
+				sprintf (dst, "%-4s %s%s%02Xh", regop[y], regop8[y], (0x9F < n) ? "0" : "", n);
+			break;
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		case 7:
+			break;
+		}
 		break;
 	}
 	return src +1 - src0;
