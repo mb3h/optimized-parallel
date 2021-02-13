@@ -318,33 +318,47 @@ BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
 	return clocks;
 }
 
+static u8 add8 (u8 lhs, u8 rhs, u8 *f)
+{
+BUG(f)
+u8 retval;
+	retval = (u8)(lhs + rhs);
+	*f &= ~(SF|ZF|HF|VF|CF);
+	*f |= (0x7F < retval) ? SF : 0;
+	*f |= (0x00 == retval) ? ZF : 0;
+	*f |= (0x80 & (retval ^ rhs)) ? VF : 0;
+	*f |= (retval < rhs) ? CF : 0;
+	return retval;
+}
+static unsigned add_n (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned r8;
+	r8 = 7 & p[0];
+u8 n;
+	n = fetch_to_n (m_);
+	m_->r.a = add8 (m_->r.a, n, &m_->r.f);
+	return M1 +3;
+}
 static unsigned add_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
 unsigned r8;
 	r8 = 7 & p[0];
-unsigned retval;
+u8 n;
+	if (6 == r8) {
 u8 *src;
-	switch (r8) {
-	case 6:
 		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
 BUG(src)
 		src += PTR16OFS(m_->rr.hl);
-		retval = M1 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		src = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
+		n = *src;
+		m_->r.a = add8 (m_->r.a, n, &m_->r.f);
+		return M1 +3;
 	}
-	m_->r.a = (u8)(m_->r.a + *src);
-	m_->r.f &= ~(SF|ZF|HF|VF|CF);
-	m_->r.f |= (0x7F < m_->r.a) ? SF : 0;
-	m_->r.f |= (0x00 == m_->r.a) ? ZF : 0;
-	m_->r.f |= (0x80 & (m_->r.a ^ *src)) ? VF : 0;
-	m_->r.f |= (m_->r.a < *src) ? CF : 0;
-	return retval;
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+	n = *(m_->r8 + R2I[r8]);
+	m_->r.a = add8 (m_->r.a, n, &m_->r.f);
+	return M1;
 }
 static unsigned adc_r (z80_s *m_, const u8 *p)
 {
@@ -579,14 +593,14 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r 
 	,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r 
 
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , add_n  , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
 };
 
 unsigned __attribute__((stdcall)) z80_exec (struct z80 *this_, unsigned min_clocks)
