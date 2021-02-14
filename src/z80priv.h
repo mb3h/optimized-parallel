@@ -12,7 +12,6 @@ struct memctl {
 	void *raw_or_rwfn;
 	void *rwfn_priv;
 };
-typedef struct memctl memctl_s;
 
 struct z80_ {
 	union {
@@ -66,7 +65,7 @@ struct z80_ {
 	uint16_t pc32, pc;
 # endif
 #endif
-	memctl_s mem[8];
+	struct memctl mem[8];
 };
 typedef struct z80_ z80_s;
 
@@ -96,5 +95,7 @@ static const unsigned RR2I[4] = {
 # endif
 #endif
 };
+
+typedef struct memctl memctl_s;
 
 #endif //def Z80PRIV_H_INCLUDED__

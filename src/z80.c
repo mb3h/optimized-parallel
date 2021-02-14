@@ -25,6 +25,7 @@
 typedef uint32_t u32;
 typedef  uint8_t u8;
 typedef uint16_t u16;
+typedef   int8_t s8;
 
 #define arraycountof(x) (sizeof(x)/sizeof((x)[0]))
 
@@ -42,56 +43,220 @@ typedef uint16_t u16;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// FETCH
-static u8 fetch_to_n (z80_s *m_)
+// READ
+static u8 read_to_n (const memctl_s *mem, u16 addr, unsigned *clocks)
 {
-	++m_->pc;
+BUG(clocks)
 u8 *src;
-	src = (u8 *)PTR16(m_->mem, m_->pc);
+	src = (u8 *)PTR16(mem, addr);
 BUG(src)
-	src += PTR16OFS(m_->pc);
+	src += PTR16OFS(addr);
 u8 n;
-	n = src[0];
+	n = *src;
+	*clocks += 3;
 	return n;
 }
-static u16 fetch_to_nn (z80_s *m_)
+static u16 read_to_nn (const memctl_s *mem, u16 addr, unsigned *clocks)
 {
-	++m_->pc;
-u8 *src;
-	src = (u8 *)PTR16(m_->mem, m_->pc);
-BUG(src)
-	src += PTR16OFS(m_->pc);
 u16 nn;
-	nn = src[0];
-	++m_->pc;
-	nn |= src[1] << 8;
+	nn  = read_to_n (mem, addr, clocks);
+	nn |= read_to_n (mem, addr +1, clocks) << 8;
 	return nn;
+}
+
+// WRITE
+static void n_to_write (memctl_s *mem, u8 n, u16 addr, unsigned *clocks)
+{
+BUG(clocks)
+	*clocks += 3;
+u8 *dst;
+	dst = (u8 *)PTR16(mem, addr);
+BUG(dst)
+	dst += PTR16OFS(addr);
+	*dst = n;
+}
+static void nn_to_write (memctl_s *mem, u16 nn, u16 addr, unsigned *clocks)
+{
+BUG(clocks)
+	n_to_write (mem, 255 & nn, addr, clocks);
+	n_to_write (mem, 255 & nn >> 8, addr +1, clocks);
+}
+
+// FETCH
+static u8 fetch_to_n (z80_s *m_, unsigned *clocks)
+{
+BUG(clocks)
+	++m_->pc;
+	return read_to_n (m_->mem, m_->pc, clocks);
+}
+static u16 fetch_to_nn (z80_s *m_, unsigned *clocks)
+{
+BUG(clocks)
+	m_->pc += 2;
+	return read_to_nn (m_->mem, m_->pc -1, clocks);
+}
+static unsigned r8_read_to_n (z80_s *m_, unsigned r8, unsigned *clocks)
+{
+BUG(clocks)
+u8 n;
+	if (6 == r8)
+		n = read_to_n (m_->mem, m_->rr.hl, clocks);
+	else {
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+		n = *(m_->r8 + R2I[r8]);
+	}
+	return n;
+}
+static void n_to_write_r8 (z80_s *m_, u8 n, unsigned r8, unsigned *clocks)
+{
+	if (6 == r8)
+		n_to_write (m_->mem, n, m_->rr.hl, clocks);
+	else {
+BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
+		*(m_->r8 + R2I[r8]) = n;
+	}
+}
+
+// ALU core
+static u8 inc8 (u8 lhs, u8 *f)
+{
+BUG(f)
+u8 alu;
+	alu = (u8)(lhs +1);
+	*f &= ~(SF|ZF|HF|VF|NF);
+	*f |= (0x7F < alu) ? SF : 0;
+	*f |= (0x00 == alu) ? ZF : 0;
+	*f |= (0x00 == (0x0F & alu)) ? HF : 0;
+	*f |= (0x80 == alu) ? VF : 0;
+	return alu;
+}
+static u8 dec8 (u8 lhs, u8 *f)
+{
+BUG(f)
+u8 alu;
+	alu = (u8)(lhs +0xFF);
+	*f &= ~(SF|ZF|HF|VF);
+	*f |= (0x7F < alu) ? SF : 0;
+	*f |= (0x00 == alu) ? ZF : 0;
+	*f |= (0x0F == (0x0F & alu)) ? HF : 0;
+	*f |= (0x7F == alu) ? VF : 0;
+	*f |= NF;
+	return alu;
+}
+static u8 add8 (u8 lhs, u8 rhs, u8 *f)
+{
+BUG(f)
+u8 alu;
+	alu = (u8)(lhs + rhs);
+	*f &= ~(SF|ZF|HF|VF|CF);
+	*f |= (15 < (15 & lhs) + (15 & rhs)) ? HF : 0;
+	*f |= (0x7F < alu) ? SF : 0;
+	*f |= (0x00 == alu) ? ZF : 0;
+	*f |= ((s8)lhs + (s8)rhs < -128 || 127 < (s8)lhs + (s8)rhs) ? VF : 0;
+	*f |= (alu < rhs) ? CF : 0;
+	return alu;
+}
+static u8 adc8 (u8 lhs, u8 rhs, u8 *f)
+{
+BUG(f)
+u8 cy;
+	cy = (CF & *f) ? 1 : 0;
+u8 alu;
+	alu = (u8)(lhs + rhs + cy);
+	*f &= ~(SF|ZF|HF|VF|CF);
+	*f |= (15 < (15 & lhs) + (15 & rhs) + cy) ? HF : 0;
+	*f |= (0x7F < alu) ? SF : 0;
+	*f |= (0x00 == alu) ? ZF : 0;
+	*f |= ((s8)lhs + (s8)rhs + cy < -128 || 127 < (s8)lhs + (s8)rhs + cy) ? VF : 0;
+	*f |= (alu < rhs + cy) ? CF : 0;
+	return alu;
+}
+static u8 sub8 (u8 lhs, u8 rhs, u8 *f)
+{
+BUG(f)
+u8 alu;
+	alu = (u8)(lhs +0x100 - rhs);
+	*f &= ~(SF|ZF|HF|VF|CF);
+	*f |= ((15 & lhs) - (15 & rhs) < 0) ? HF : 0;
+	*f |= (0x7F < alu) ? SF : 0;
+	*f |= (0x00 == alu) ? ZF : 0;
+	*f |= ((s8)lhs - (s8)rhs < -128 || 127 < (s8)lhs - (s8)rhs) ? VF : 0;
+	*f |= NF;
+	*f |= (0xFF < alu + rhs) ? CF : 0;
+	return alu;
+}
+static u8 sbc8 (u8 lhs, u8 rhs, u8 *f)
+{
+BUG(f)
+u8 cy;
+	cy = (CF & *f) ? 1 : 0;
+u8 alu;
+	alu = (u8)(lhs +0x100 - cy - rhs);
+	*f &= ~(SF|ZF|HF|VF|CF);
+	*f |= ((15 & lhs) - (15 & rhs) - cy < 0) ? HF : 0;
+	*f |= (0x7F < alu) ? SF : 0;
+	*f |= (0x00 == alu) ? ZF : 0;
+	*f |= ((s8)lhs - (s8)rhs - cy < -128 || 127 < (s8)lhs - (s8)rhs - cy) ? VF : 0;
+	*f |= NF;
+	*f |= (0xFF < alu + rhs + cy) ? CF : 0;
+	return alu;
+}
+static u8 odd_even[16] = {
+	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0
+};
+static u8 and8 (u8 lhs, u8 rhs, u8 *f)
+{
+BUG(f)
+u8 alu;
+	alu = (u8)(lhs & rhs);
+	*f &= ~(SF|ZF|HF|VF|NF|CF);
+	*f |= HF;
+	*f |= (0x7F < alu) ? SF : 0;
+	*f |= (0x00 == alu) ? ZF : 0;
+	*f |= !(odd_even[15 & alu] ^ odd_even[15 & alu >> 4]) ? PF : 0;
+	return alu;
+}
+static u8 xor8 (u8 lhs, u8 rhs, u8 *f)
+{
+BUG(f)
+u8 alu;
+	alu = (u8)(lhs ^ rhs);
+	*f &= ~(SF|ZF|HF|VF|NF|CF);
+	*f |= (0x7F < alu) ? SF : 0;
+	*f |= (0x00 == alu) ? ZF : 0;
+	*f |= !(odd_even[15 & alu] ^ odd_even[15 & alu >> 4]) ? PF : 0;
+	return alu;
+}
+static u8 or8 (u8 lhs, u8 rhs, u8 *f)
+{
+BUG(f)
+u8 alu;
+	alu = (u8)(lhs | rhs);
+	*f &= ~(SF|ZF|HF|VF|NF|CF);
+	*f |= (0x7F < alu) ? SF : 0;
+	*f |= (0x00 == alu) ? ZF : 0;
+	*f |= !(odd_even[15 & alu] ^ odd_even[15 & alu >> 4]) ? PF : 0;
+	return alu;
 }
 
 // 0X1
 static unsigned ld_rr_nn (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r16;
-	r16 = 3 & p[0] >> 4;
-u16 nn;
-	nn = fetch_to_nn (m_);
-u16 *dst;
-	dst = m_->r16 + RR2I[r16];
-	*dst = nn;
-	return M1 +3 +3;
+unsigned clocks;
+	clocks = M1;
+u16 *rr;
+	rr = m_->r16 + RR2I[3 & p[0] >> 4];
+	*rr = fetch_to_nn (m_, &clocks);
+	return clocks;
 }
 // TODO: flag register
 static unsigned add_hl_rr (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r16;
-	r16 = 3 & p[0] >> 4;
-const u16 *src;
-	src = m_->r16 + RR2I[r16];
-u16 *dst;
-	dst = &m_->rr.hl;
-	*dst += *src;
+const u16 *rr;
+	rr = m_->r16 + RR2I[3 & p[0] >> 4];
+	m_->rr.hl += *rr;
 	return M1 +4 +3;
 }
 
@@ -99,78 +264,62 @@ u16 *dst;
 static unsigned ld_rr_a (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r16;
-	r16 = 3 & p[0] >> 4;
+unsigned clocks;
+	clocks = M1;
 const u16 *rr;
-	rr = m_->r16 + RR2I[r16];
-u8 *dst;
-	dst = (u8 *)PTR16(m_->mem, *rr);
-BUG(dst)
-	dst += PTR16OFS(*rr);
-	*dst = m_->r.a;
-	return M1 +3;
+	rr = m_->r16 + RR2I[3 & p[0] >> 4];
+	n_to_write (m_->mem, m_->r.a, *rr, &clocks);
+	return clocks;
 }
 static unsigned ld_a_rr (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r16;
-	r16 = 3 & p[0] >> 4;
+unsigned clocks;
+	clocks = M1;
 const u16 *rr;
-	rr = m_->r16 + RR2I[r16];
-const u8 *src;
-	src = (const u8 *)PTR16(m_->mem, *rr);
-BUG(src)
-	src += PTR16OFS(*rr);
-	m_->r.a = *src;
-	return M1 +3;
+	rr = m_->r16 + RR2I[3 & p[0] >> 4];
+	m_->r.a = read_to_n (m_->mem, *rr, &clocks);
+	return clocks;
 }
 static unsigned ld_pnn_hl (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
 u16 nn;
-	nn = fetch_to_nn (m_);
-u8 *dst;
-	dst = (u8 *)PTR16(m_->mem, nn);
-BUG(dst)
-	dst += PTR16OFS(nn);
-	store_le16 (dst, m_->rr.hl);
-	return M1 +3 +3 +3 +3;
+	nn = fetch_to_nn (m_, &clocks);
+	nn_to_write (m_->mem, m_->rr.hl, nn, &clocks);
+	return clocks;
 }
 static unsigned ld_hl_pnn (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
 u16 nn;
-	nn = fetch_to_nn (m_);
-const u8 *src;
-	src = (const u8 *)PTR16(m_->mem, nn);
-BUG(src)
-	src += PTR16OFS(nn);
-	m_->rr.hl = load_le16 (src);
-	return M1 +3 +3 +3 +3;
+	nn = fetch_to_nn (m_, &clocks);
+	m_->rr.hl = read_to_nn (m_->mem, nn, &clocks);
+	return clocks;
 }
 static unsigned ld_pnn_a (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
 u16 nn;
-	nn = fetch_to_nn (m_);
-u8 *dst;
-	dst = (u8 *)PTR16(m_->mem, nn);
-BUG(dst)
-	dst += PTR16OFS(nn);
-	*dst = m_->r.a;
-	return M1 +3 +3 +3 +3;
+	nn = fetch_to_nn (m_, &clocks);
+	n_to_write (m_->mem, m_->r.a, nn, &clocks);
+	return clocks;
 }
 static unsigned ld_a_pnn (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
 u16 nn;
-	nn = fetch_to_nn (m_);
-const u8 *src;
-	src = (const u8 *)PTR16(m_->mem, nn);
-BUG(src)
-	src += PTR16OFS(nn);
-	m_->r.a = *src;
-	return M1 +3 +3 +3 +3;
+	nn = fetch_to_nn (m_, &clocks);
+	m_->r.a = read_to_n (m_->mem, nn, &clocks);
+	return clocks;
 }
 
 // 0X3
@@ -200,369 +349,236 @@ u16 *dst;
 static unsigned inc_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
 unsigned r8;
 	r8 = 7 & p[0] >> 3;
-unsigned retval;
-u8 *dst;
-	switch (r8) {
-	case 6:
-		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(dst)
-		dst += PTR16OFS(m_->rr.hl);
-		retval = M1 +3 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		dst = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
-	}
-	*dst = (u8)(*dst +1);
-	m_->r.f &= ~(SF|ZF|HF|VF|NF);
-	m_->r.f |= (0x7F < *dst) ? SF : 0;
-	m_->r.f |= (0x00 == *dst) ? ZF : 0;
-	m_->r.f |= (0x00 == (0x0F & *dst)) ? HF : 0;
-	m_->r.f |= (0x80 == *dst) ? VF : 0;
-	return retval;
+u8 n;
+	n = r8_read_to_n (m_, r8, &clocks);
+	n = inc8 (n, &m_->r.f);
+	if (6 == r8)
+		++clocks; // (M1,4,3)
+	n_to_write_r8 (m_, n, r8, &clocks);
+	return clocks;
 }
 
 // 0X5
 static unsigned dec_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
 unsigned r8;
 	r8 = 7 & p[0] >> 3;
-unsigned retval;
-u8 *dst;
-	switch (r8) {
-	case 6:
-		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(dst)
-		dst += PTR16OFS(m_->rr.hl);
-		retval = M1 +3 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		dst = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
-	}
-	*dst = (u8)(*dst +0xFF);
-	m_->r.f &= ~(SF|ZF|HF|VF);
-	m_->r.f |= (0x7F < *dst) ? SF : 0;
-	m_->r.f |= (0x00 == *dst) ? ZF : 0;
-	m_->r.f |= (0x0F == (0x0F & *dst)) ? HF : 0;
-	m_->r.f |= (0x7F == *dst) ? VF : 0;
-	m_->r.f |= NF;
-	return retval;
+u8 n;
+	n = r8_read_to_n (m_, r8, &clocks);
+	n = dec8 (n, &m_->r.f);
+	if (6 == r8)
+		++clocks; // (M1,4,3)
+	n_to_write_r8 (m_, n, r8, &clocks);
+	return clocks;
 }
 
 // 0X6
 static unsigned ld_r_n (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0] >> 3;
+unsigned clocks;
+	clocks = M1;
 u8 n;
-	n = fetch_to_n (m_);
-u8 *dst;
-	switch (r8) {
-	case 6:
-		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(dst)
-		dst += PTR16OFS(m_->rr.hl);
-		*dst = n;
-		return M1 +3 +3;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		dst = m_->r8 + R2I[r8];
-		*dst = n;
-		return M1 +3;
-	}
+	n = fetch_to_n (m_, &clocks);
+	n_to_write_r8 (m_, n, 7 & p[0] >> 3, &clocks);
+	return clocks;
 }
 
+// 1XX
 static unsigned ld_r_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
 unsigned clocks;
 	clocks = M1;
-unsigned r8;
-	r8 = 7 & p[0];
-u8 *src;
-	switch (r8) {
-	case 6:
-		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(src)
-		src += PTR16OFS(m_->rr.hl);
-		clocks += 3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		src = m_->r8 + R2I[r8];
-		break;
-	}
-	r8 = 7 & p[0] >> 3;
-u8 *dst;
-	switch (r8) {
-	case 6:
-		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(dst)
-		dst += PTR16OFS(m_->rr.hl);
-		clocks += 3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		dst = m_->r8 + R2I[r8];
-	}
-	*dst = *src;
+u8 n;
+	n = r8_read_to_n (m_, 7 & p[0], &clocks);
+	n_to_write_r8 (m_, n, 7 & p[0] >> 3, &clocks);
 	return clocks;
 }
 
-static u8 add8 (u8 lhs, u8 rhs, u8 *f)
-{
-BUG(f)
-u8 retval;
-	retval = (u8)(lhs + rhs);
-	*f &= ~(SF|ZF|HF|VF|CF);
-	*f |= (0x7F < retval) ? SF : 0;
-	*f |= (0x00 == retval) ? ZF : 0;
-	*f |= (0x80 & (retval ^ rhs)) ? VF : 0;
-	*f |= (retval < rhs) ? CF : 0;
-	return retval;
-}
-static unsigned add_n (z80_s *m_, const u8 *p)
-{
-BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0];
-u8 n;
-	n = fetch_to_n (m_);
-	m_->r.a = add8 (m_->r.a, n, &m_->r.f);
-	return M1 +3;
-}
+// 20X
 static unsigned add_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0];
+unsigned clocks;
+	clocks = M1;
 u8 n;
-	if (6 == r8) {
-u8 *src;
-		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(src)
-		src += PTR16OFS(m_->rr.hl);
-		n = *src;
-		m_->r.a = add8 (m_->r.a, n, &m_->r.f);
-		return M1 +3;
-	}
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-	n = *(m_->r8 + R2I[r8]);
+	n = r8_read_to_n (m_, 7 & p[0], &clocks);
 	m_->r.a = add8 (m_->r.a, n, &m_->r.f);
-	return M1;
+	return clocks;
 }
+
+// 21X
 static unsigned adc_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0];
-unsigned retval;
-u8 *src;
-	switch (r8) {
-	case 6:
-		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(src)
-		src += PTR16OFS(m_->rr.hl);
-		retval = M1 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		src = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
-	}
-u8 cy;
-	cy = (CF & m_->r.f) ? 1 : 0;
-	m_->r.a = (u8)(m_->r.a + *src + cy);
-	m_->r.f &= ~(SF|ZF|HF|VF|CF);
-	m_->r.f |= (0x7F < m_->r.a) ? SF : 0;
-	m_->r.f |= (0x00 == m_->r.a) ? ZF : 0;
-	m_->r.f |= (0x80 & (m_->r.a ^ *src)) ? VF : 0;
-	m_->r.f |= (m_->r.a < *src + cy) ? CF : 0;
-	return retval;
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = r8_read_to_n (m_, 7 & p[0], &clocks);
+	m_->r.a = adc8 (m_->r.a, n, &m_->r.f);
+	return clocks;
 }
+
+// 22X
 static unsigned sub_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0];
-unsigned retval;
-u8 *src;
-	switch (r8) {
-	case 6:
-		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(src)
-		src += PTR16OFS(m_->rr.hl);
-		retval = M1 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		src = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
-	}
-	m_->r.a = (u8)(m_->r.a +0x100 - *src);
-	m_->r.f &= ~(SF|ZF|HF|VF|CF);
-	m_->r.f |= (0x7F < m_->r.a) ? SF : 0;
-	m_->r.f |= (0x00 == m_->r.a) ? ZF : 0;
-	m_->r.f |= (0x80 & (m_->r.a ^ *src)) ? VF : 0;
-	m_->r.f |= NF;
-	m_->r.f |= (0xFF < m_->r.a + *src) ? CF : 0;
-	return retval;
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = r8_read_to_n (m_, 7 & p[0], &clocks);
+	m_->r.a = sub8 (m_->r.a, n, &m_->r.f);
+	return clocks;
 }
+
+// 23X
 static unsigned sbc_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0];
-unsigned retval;
-u8 *src;
-	switch (r8) {
-	case 6:
-		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(src)
-		src += PTR16OFS(m_->rr.hl);
-		retval = M1 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		src = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
-	}
-u8 cy;
-	cy = (CF & m_->r.f) ? 1 : 0;
-	m_->r.a = (u8)(m_->r.a +0x100 - cy - *src);
-	m_->r.f &= ~(SF|ZF|HF|VF|CF);
-	m_->r.f |= (0x7F < m_->r.a) ? SF : 0;
-	m_->r.f |= (0x00 == m_->r.a) ? ZF : 0;
-	m_->r.f |= (0x80 & (m_->r.a ^ *src)) ? VF : 0;
-	m_->r.f |= NF;
-	m_->r.f |= (0xFF < m_->r.a + *src + cy) ? CF : 0;
-	return retval;
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = r8_read_to_n (m_, 7 & p[0], &clocks);
+	m_->r.a = sbc8 (m_->r.a, n, &m_->r.f);
+	return clocks;
 }
-static u8 pv[16] = {
-	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0
-};
+
+// 24X
 static unsigned and_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0];
-unsigned retval;
-u8 *dst;
-	switch (r8) {
-	case 6:
-		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(dst)
-		dst += PTR16OFS(m_->rr.hl);
-		retval = M1 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		dst = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
-	}
-	*dst = (u8)(*dst & m_->r.a);
-	m_->r.f &= ~(SF|ZF|HF|VF|NF|CF);
-	m_->r.f |= (0x7F < *dst) ? SF : 0;
-	m_->r.f |= (0x00 == *dst) ? ZF : 0;
-	m_->r.f |= !(pv[15 & *dst] ^ pv[15 & *dst >> 4]) ? PF : 0;
-	return retval;
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = r8_read_to_n (m_, 7 & p[0], &clocks);
+	m_->r.a = and8 (m_->r.a, n, &m_->r.f);
+	return clocks;
 }
+
+// 25X
 static unsigned xor_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0];
-unsigned retval;
-u8 *dst;
-	switch (r8) {
-	case 6:
-		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(dst)
-		dst += PTR16OFS(m_->rr.hl);
-		retval = M1 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		dst = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
-	}
-	*dst = (u8)(*dst ^ m_->r.a);
-	m_->r.f &= ~(SF|ZF|HF|VF|NF|CF);
-	m_->r.f |= (0x7F < *dst) ? SF : 0;
-	m_->r.f |= (0x00 == *dst) ? ZF : 0;
-	m_->r.f |= !(pv[15 & *dst] ^ pv[15 & *dst >> 4]) ? PF : 0;
-	return retval;
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = r8_read_to_n (m_, 7 & p[0], &clocks);
+	m_->r.a = xor8 (m_->r.a, n, &m_->r.f);
+	return clocks;
 }
+
+// 26X
 static unsigned or_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0];
-unsigned retval;
-u8 *dst;
-	switch (r8) {
-	case 6:
-		dst = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(dst)
-		dst += PTR16OFS(m_->rr.hl);
-		retval = M1 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		dst = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
-	}
-	*dst = (u8)(*dst | m_->r.a);
-	m_->r.f &= ~(SF|ZF|HF|VF|NF|CF);
-	m_->r.f |= (0x7F < *dst) ? SF : 0;
-	m_->r.f |= (0x00 == *dst) ? ZF : 0;
-	m_->r.f |= !(pv[15 & *dst] ^ pv[15 & *dst >> 4]) ? PF : 0;
-	return retval;
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = r8_read_to_n (m_, 7 & p[0], &clocks);
+	m_->r.a = or8 (m_->r.a, n, &m_->r.f);
+	return clocks;
 }
+
+// 27X
 static unsigned cp_r (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
-unsigned r8;
-	r8 = 7 & p[0];
-unsigned retval;
-u8 *src;
-	switch (r8) {
-	case 6:
-		src = (u8 *)PTR16(m_->mem, m_->rr.hl);
-BUG(src)
-		src += PTR16OFS(m_->rr.hl);
-		retval = M1 +3;
-		break;
-	default:
-BUG(0 <= R2I[r8] && R2I[r8] < arraycountof(m_->r8))
-		src = m_->r8 + R2I[r8];
-		retval = M1;
-		break;
-	}
-u8 dst;
-	dst = (u8)(m_->r.a +0x100 - *src);
-	m_->r.f &= ~(SF|ZF|HF|VF|CF);
-	m_->r.f |= (0x7F < dst) ? SF : 0;
-	m_->r.f |= (0x00 == dst) ? ZF : 0;
-	m_->r.f |= (0x80 & (dst ^ *src)) ? VF : 0;
-	m_->r.f |= NF;
-	m_->r.f |= (*src < dst) ? CF : 0;
-	return retval;
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = r8_read_to_n (m_, 7 & p[0], &clocks);
+	sub8 (m_->r.a, n, &m_->r.f);
+	return clocks;
+}
+
+// 3X6
+static unsigned add_n (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = fetch_to_n (m_, &clocks);
+	m_->r.a = add8 (m_->r.a, n, &m_->r.f);
+	return clocks;
+}
+static unsigned adc_n (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = fetch_to_n (m_, &clocks);
+	m_->r.a = adc8 (m_->r.a, n, &m_->r.f);
+	return clocks;
+}
+static unsigned sub_n (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = fetch_to_n (m_, &clocks);
+	m_->r.a = sub8 (m_->r.a, n, &m_->r.f);
+	return clocks;
+}
+static unsigned sbc_n (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = fetch_to_n (m_, &clocks);
+	m_->r.a = sbc8 (m_->r.a, n, &m_->r.f);
+	return clocks;
+}
+static unsigned and_n (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = fetch_to_n (m_, &clocks);
+	m_->r.a = and8 (m_->r.a, n, &m_->r.f);
+	return clocks;
+}
+static unsigned xor_n (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = fetch_to_n (m_, &clocks);
+	m_->r.a = xor8 (m_->r.a, n, &m_->r.f);
+	return clocks;
+}
+static unsigned or_n (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = fetch_to_n (m_, &clocks);
+	m_->r.a = or8 (m_->r.a, n, &m_->r.f);
+	return clocks;
+}
+static unsigned cp_n (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 n;
+	n = fetch_to_n (m_, &clocks);
+	sub8 (m_->r.a, n, &m_->r.f);
+	return clocks;
 }
 
 static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
@@ -593,14 +609,14 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r 
 	,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r 
 
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , add_n  , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , NULL   , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , add_n , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , adc_n , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , sub_n , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , sbc_n , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , and_n , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , xor_n , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  ,  or_n , NULL  
+	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  ,  cp_n , NULL  
 };
 
 unsigned __attribute__((stdcall)) z80_exec (struct z80 *this_, unsigned min_clocks)
