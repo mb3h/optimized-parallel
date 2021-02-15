@@ -276,17 +276,24 @@ LCEND(dx2WRITEcx)
 	/* TODO: mem[] */ \
 	"inc " EAPC NL \
 	"movzbl (" EAPC ")," "%edx" NL
+// CAUTION: (*1)
+#define FETCH2dl2sdx \
+	/* TODO: mem[] */ \
+	"inc " EAPC NL \
+	"movsbl (" EAPC ")," "%edx" NL
 #define FETCH2dx(label) \
 	/* TODO: mem[] */ \
 	"add $2," EAPC NL \
 	"movzwl -1(" EAPC ")," "%edx" NL
 
-OPFUNC(NOP) CLK1(4,1) OPEND(NOP) // (4+Tw)
-
 #define SET2ah(mask) \
 	"or $(" mask "),%ah" NL
 #define RES2ah(mask) \
 	"and $(0xff - (" mask ")),%ah" NL
+#define sdx2JR \
+	/* TODO: mem[] */ \
+	"add " EDX "," EAPC NL \
+	"ret" NL
 #define eflagsOF2cl2ah \
 	"seto %cl" NL RES2ah(VF "+" NF) "shl $2,%cl" NL "or %cl,%ah" NL
 #define ah2eflags \
@@ -317,6 +324,28 @@ OPFUNC(NOP) CLK1(4,1) OPEND(NOP) // (4+Tw)
 	"mov %ah,%cl" NL "add " l ",%dl" NL "adc " h ",%dh" NL \
 	eflags2ah "and $(0xff - (" HF "+" NF "+" CF ")),%cl" NL "and $(" HF "+" CF "),%ah" NL "or %cl,%ah" NL
 
+#define MENDIF(label) LC #label "_unmatch:" NL
+#define MELSE0 MENDIF
+#define MIFNZ(label) "test $" ZF ",%ah" NL "jnz " LC #label "_unmatch" NL
+#define  MIFZ(label) "test $" ZF ",%ah" NL "jz  " LC #label "_unmatch" NL
+#define MIFNC(label) "test $" CF ",%ah" NL "jnz " LC #label "_unmatch" NL
+#define  MIFC(label) "test $" CF ",%ah" NL "jz  " LC #label "_unmatch" NL
+
+OPFUNC(JR)                 FETCH2dl2sdx CLK1(12,3) sdx2JR                                        OPEND(JR)    // (4+Tw,3,5)
+OPFUNC(JR_NZ) MIFNZ(JR_NZ) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NZ) CLK1(7,2) "inc " EAPC NL OPEND(JR_NZ) // (4+Tw,3[,5])
+OPFUNC(JR_Z)   MIFZ(JR_Z)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_Z)  CLK1(7,2) "inc " EAPC NL OPEND(JR_Z) 
+OPFUNC(JR_NC) MIFNC(JR_NC) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NC) CLK1(7,2) "inc " EAPC NL OPEND(JR_NC)
+OPFUNC(JR_C)   MIFC(JR_C)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_C)  CLK1(7,2) "inc " EAPC NL OPEND(JR_C) 
+
+OPFUNC(DJNZ)
+	"mov " B ",%dl" NL
+	"dec %dl" NL
+	"jz " LC "DJNZ" "_unmatch" NL
+	"mov %dl," B NL
+	FETCH2dl2sdx CLK1(13,3) sdx2JR MELSE0(DJNZ) CLK1(8,2)
+	"mov %dl," B NL
+OPEND(DJNZ) // (5+Tw,3[,5])
+
 OPFUNC(ADD_HL_BC) LD2dx(HL) ah2ADDdx(B,C)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_BC) // (4+Tw,4,3)
 OPFUNC(ADD_HL_DE) LD2dx(HL) ah2ADDdx(D,E)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_DE)
 OPFUNC(ADD_HL_HL) LD2dx(HL) ah2ADDdx(H,L)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_HL)
@@ -331,6 +360,8 @@ OPFUNC(DEC_BC) LD2dx(BC) "dec " EDX NL CLK1(6,1) dx2ST(BC) OPEND(DEC_BC) // (6+T
 OPFUNC(DEC_DE) LD2dx(DE) "dec " EDX NL CLK1(6,1) dx2ST(DE) OPEND(DEC_DE)
 OPFUNC(DEC_HL) LD2dx(HL) "dec " EDX NL CLK1(6,1) dx2ST(HL) OPEND(DEC_HL)
 OPFUNC(DEC_SP) LD2dx(SP) "dec " EDX NL CLK1(6,1) dx2ST(SP) OPEND(DEC_SP)
+
+OPFUNC(NOP) CLK1(4,1) OPEND(NOP) // (4+Tw)
 
 #define OPALU(fn) \
 	OPFUNC(fn##_B) M##fn(B) CLK1(4,1) OPEND(fn##_B) /* (4+Tw) */ \
@@ -455,14 +486,14 @@ __asm__ (
 	".section .rodata" NL
 	".type " LC "z80_opcode" ",@object" LF
 LC "z80_opcode:" NL
-	".long " OP "NOP," OP "LD_BC_NN,"  OP "LD_BC_A,"   OP "INC_BC," OP "INC_B," OP "DEC_B," OP "LD_B_N," OP "NOP" NL
-	".long " OP "NOP," OP "ADD_HL_BC," OP "LD_A_BC,"   OP "DEC_BC," OP "INC_C," OP "DEC_C," OP "LD_C_N," OP "NOP" NL
-	".long " OP "NOP," OP "LD_DE_NN,"  OP "LD_DE_A,"   OP "INC_DE," OP "INC_D," OP "DEC_D," OP "LD_D_N," OP "NOP" NL
-	".long " OP "NOP," OP "ADD_HL_DE," OP "LD_A_DE,"   OP "DEC_DE," OP "INC_E," OP "DEC_E," OP "LD_E_N," OP "NOP" NL
-	".long " OP "NOP," OP "LD_HL_NN,"  OP "LD_pNN_HL," OP "INC_HL," OP "INC_H," OP "DEC_H," OP "LD_H_N," OP "NOP" NL
-	".long " OP "NOP," OP "ADD_HL_HL," OP "LD_HL_pNN," OP "DEC_HL," OP "INC_L," OP "DEC_L," OP "LD_L_N," OP "NOP" NL
-	".long " OP "NOP," OP "LD_SP_NN,"  OP "LD_pNN_A,"  OP "INC_SP," OP "INC_p," OP "DEC_p," OP "LD_p_N," OP "NOP" NL
-	".long " OP "NOP," OP "ADD_HL_SP," OP "LD_A_pNN,"  OP "DEC_SP," OP "INC_A," OP "DEC_A," OP "LD_A_N," OP "NOP" NL
+	".long " OP   "NOP," OP "LD_BC_NN,"  OP "LD_BC_A,"   OP "INC_BC," OP "INC_B," OP "DEC_B," OP "LD_B_N," OP "NOP" NL
+	".long " OP   "NOP," OP "ADD_HL_BC," OP "LD_A_BC,"   OP "DEC_BC," OP "INC_C," OP "DEC_C," OP "LD_C_N," OP "NOP" NL
+	".long " OP  "DJNZ," OP "LD_DE_NN,"  OP "LD_DE_A,"   OP "INC_DE," OP "INC_D," OP "DEC_D," OP "LD_D_N," OP "NOP" NL
+	".long " OP    "JR," OP "ADD_HL_DE," OP "LD_A_DE,"   OP "DEC_DE," OP "INC_E," OP "DEC_E," OP "LD_E_N," OP "NOP" NL
+	".long " OP "JR_NZ," OP "LD_HL_NN,"  OP "LD_pNN_HL," OP "INC_HL," OP "INC_H," OP "DEC_H," OP "LD_H_N," OP "NOP" NL
+	".long " OP  "JR_Z," OP "ADD_HL_HL," OP "LD_HL_pNN," OP "DEC_HL," OP "INC_L," OP "DEC_L," OP "LD_L_N," OP "NOP" NL
+	".long " OP "JR_NC," OP "LD_SP_NN,"  OP "LD_pNN_A,"  OP "INC_SP," OP "INC_p," OP "DEC_p," OP "LD_p_N," OP "NOP" NL
+	".long " OP  "JR_C," OP "ADD_HL_SP," OP "LD_A_pNN,"  OP "DEC_SP," OP "INC_A," OP "DEC_A," OP "LD_A_N," OP "NOP" NL
 
 	".long " OP    "NOP," OP "LD_B_C," OP "LD_B_D," OP "LD_B_E," OP "LD_B_H," OP "LD_B_L," OP "LD_B_p," OP "LD_B_A" NL
 	".long " OP "LD_C_B," OP    "NOP," OP "LD_C_D," OP "LD_C_E," OP "LD_C_H," OP "LD_C_L," OP "LD_C_p," OP "LD_C_A" NL

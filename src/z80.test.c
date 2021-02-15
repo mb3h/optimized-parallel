@@ -13,6 +13,7 @@
 typedef uint32_t u32;
 typedef  uint8_t u8;
 typedef uint16_t u16;
+typedef   int8_t s8;
 
 ///////////////////////////////////////////////////////////////////////////////
 // recycle
@@ -33,11 +34,17 @@ static unsigned tohex (int c)
 
 static size_t z80a_disasm_tostr (const void *src_, u16 pc, char *dst, size_t cb)
 {
+static const char *cond[] = {
+	"NZ", "Z", "NC", "C", "PO", "PE", "P", "M"
+};
 static const char *r8[] = {
 	"B", "C", "D", "E", "H", "L", "(HL)", "A"
 };
 static const char *r16[] = {
 	"BC", "DE", "HL", "SP"
+};
+static const char *r16b[] = {
+	"BC", "DE", "HL", "AF"
 };
 static const char *regop[] = {
 	"ADD", "ADC", "SUB", "SBC", "AND", "XOR", "OR", "CP"
@@ -58,6 +65,27 @@ u16 nn;
 	switch (x) {
 	case 0:
 		switch (z) {
+		case 0:
+			switch (y) {
+			case 0:
+				sprintf (dst, "%-4s", "NOP");
+				break;
+			case 1:
+				sprintf (dst, "%-4s %s,%s'", "EX", r16b[3], r16b[3]);
+				break;
+			case 2:
+			case 3:
+				n = *++src;
+				nn = (u16)(pc +2 + (s8)n);
+				sprintf (dst, "%-4s %s%04Xh", (2 == y) ? "DJNZ" : "JR", (0x9FFF < nn) ? "0" : "", nn);
+				break;
+			default:
+				n = *++src;
+				nn = (u16)(pc +2 + (s8)n);
+				sprintf (dst, "%-4s %s,%s%04Xh", "JR", cond[y -4], (0x9FFF < nn) ? "0" : "", nn);
+				break;
+			}
+			break;
 		case 1:
 			if (! (1 & y)) {
 				nn = load_le16 (++src);
@@ -110,7 +138,6 @@ u16 nn;
 			n = *++src;
 			sprintf (dst, "%-4s %s,%s%02Xh", "LD", r8[y], (0x9F < n) ? "0" : "", n);
 			break;
-		case 0:
 		case 7:
 			break;
 		}
@@ -349,8 +376,24 @@ u8 n;
 		m_->pc = 0xB000;
 z80_s old;
 		memcpy (&old, m_, sizeof(z80_s));
+u16 pc_before_exec;
+		pc_before_exec = m_->pc;
 unsigned executed;
 		executed = z80_exec ((struct z80 *)m_, 1);
+	// (executed bytes)
+		p = &mem5[0x1000];
+size_t cb_executed;
+		cb_executed = 4;
+		if (0x00 == (0xc7 & p[0]) && 0x08 < p[0]) // DJNZ JR
+			cb_executed = 2;
+		else if (0xc0 == (0xc7 & p[0]) || 0xc9 == p[0]) // RET
+			cb_executed = 1;
+		else if (0xc2 == (0xc7 & p[0]) || 0xc3 == p[0]) // JP
+			cb_executed = 3;
+		else if (0xc4 == (0xc7 & p[0]) || 0xcd == p[0]) // CALL
+			cb_executed = 3;
+		else if (0xB000 < m_->pc && m_->pc < 0xB004)
+			cb_executed = m_->pc - 0xB000;
 	// result output
 char *dst;
 		dst = text;
@@ -386,7 +429,7 @@ size_t cb;
 		// A BC DE HL SP ...
 		cb += changed_reg_tostr (m_, &old, SEP, dst +cb, text_end - (dst +cb));
 		// PC
-		if (! (0xB000 < m_->pc && m_->pc <= 0xB004)) {
+		if (! (0xB000 < m_->pc && m_->pc <= 0xB004 && 0xB000 + cb_executed == m_->pc)) {
 			if (0 < cb)
 				dst[cb++] = SEP[0];
 			sprintf (dst +cb, "PC=%04X", m_->pc);
@@ -417,19 +460,18 @@ size_t cb;
 		dst += cb;
 		// CODE
 		*dst++ = ' ';
-		p = q = &mem5[0x1000];
-		cb = (0xB000 < m_->pc && m_->pc < 0xB004) ? m_->pc - 0xB000 : 4;
+		p = &mem5[0x1000];
 size_t i;
 		for (i = 0; i < 4; ++i) {
-			if (i < cb)
-				sprintf (dst, "%02X", mem5[0x1000 +i]);
+			if (i < cb_executed)
+				sprintf (dst, "%02X", p[i]);
 			else
 				strcpy (dst, "  ");
 			dst += 2;
 		}
 		// mnemonic
 		*dst++ = ' ';
-		z80a_disasm_tostr (mem5 +0x1000, m_->pc, dst, text_end - dst);
+		z80a_disasm_tostr (mem5 +0x1000, pc_before_exec, dst, text_end - dst);
 		dst = strchr (dst, '\0');
 		//
 		*dst = '\0';
