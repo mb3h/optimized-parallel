@@ -294,6 +294,10 @@ static void each_opcode_test (z80_s *m_, const char *test_text_path)
 FILE *fp;
 	if (NULL == (fp = fopen (test_text_path, "r")))
 		return;
+#ifdef Ei386
+	// native emulation tag
+puts ("i386 native emulation.");
+#endif
 size_t line;
 	line = 0;
 	while (!feof (fp)) {
@@ -381,16 +385,17 @@ u16 pc_before_exec;
 unsigned executed;
 		executed = z80_exec ((struct z80 *)m_, 1);
 	// (executed bytes)
-		p = &mem5[0x1000];
+u8 *opcode;
+		opcode = &mem5[0x1000];
 size_t cb_executed;
 		cb_executed = 4;
-		if (0x00 == (0xc7 & p[0]) && 0x08 < p[0]) // DJNZ JR
+		if (0x00 == (0xc7 & opcode[0]) && 0x08 < opcode[0]) // DJNZ JR
 			cb_executed = 2;
-		else if (0xc0 == (0xc7 & p[0]) || 0xc9 == p[0]) // RET
+		else if (0xc0 == (0xc7 & opcode[0]) || 0xc9 == opcode[0]) // RET
 			cb_executed = 1;
-		else if (0xc2 == (0xc7 & p[0]) || 0xc3 == p[0]) // JP
+		else if (0xc2 == (0xc7 & opcode[0]) || 0xc3 == opcode[0]) // JP
 			cb_executed = 3;
-		else if (0xc4 == (0xc7 & p[0]) || 0xcd == p[0]) // CALL
+		else if (0xc4 == (0xc7 & opcode[0]) || 0xcd == opcode[0]) // CALL
 			cb_executed = 3;
 		else if (0xB000 < m_->pc && m_->pc < 0xB004)
 			cb_executed = m_->pc - 0xB000;
@@ -460,11 +465,10 @@ size_t cb;
 		dst += cb;
 		// CODE
 		*dst++ = ' ';
-		p = &mem5[0x1000];
 size_t i;
 		for (i = 0; i < 4; ++i) {
 			if (i < cb_executed)
-				sprintf (dst, "%02X", p[i]);
+				sprintf (dst, "%02X", opcode[i]);
 			else
 				strcpy (dst, "  ");
 			dst += 2;

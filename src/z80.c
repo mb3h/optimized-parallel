@@ -37,13 +37,23 @@ typedef   int8_t s8;
 #define ZF 0x40
 #define SF 0x80
 
-#ifndef Em // emulation not optimized.
+#ifndef Ei386 // emulation not optimized.
 # define PTR16(mmap8, addr) ((mmap8)[7 & (addr) >> 13].raw_or_rwfn)
 # define PTR16OFS(addr) (0x1FFF & (addr))
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// READ
+// RELATIVE ADDRESSING
+static u16 rel_add16 (u16 nn, u8 e, unsigned *clocks)
+{
+BUG(clocks)
+u16 alu;
+	alu = (u16)(nn + (s8)e);
+	*clocks += 5;
+	return alu;
+}
+
+// MEMORY (READ)
 static u8 read_to_n (const memctl_s *mem, u16 addr, unsigned *clocks)
 {
 BUG(clocks)
@@ -64,7 +74,7 @@ u16 nn;
 	return nn;
 }
 
-// WRITE
+// MEMORY (WRITE)
 static void n_to_write (memctl_s *mem, u8 n, u16 addr, unsigned *clocks)
 {
 BUG(clocks)
@@ -237,6 +247,50 @@ u8 alu;
 	*f |= (0x00 == alu) ? ZF : 0;
 	*f |= !(odd_even[15 & alu] ^ odd_even[15 & alu >> 4]) ? PF : 0;
 	return alu;
+}
+
+// 0X0
+static unsigned djnz (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1 +1;
+u8 e;
+	e = fetch_to_n (m_, &clocks);
+	if (0 == --m_->r.b)
+		return clocks;
+	m_->pc = rel_add16 (m_->pc, e, &clocks);
+	return clocks;
+}
+static unsigned jr (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 e;
+	e = fetch_to_n (m_, &clocks);
+	m_->pc = rel_add16 (m_->pc, e, &clocks);
+	return clocks;
+}
+static unsigned cond_jr (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u8 e;
+	e = fetch_to_n (m_, &clocks);
+	switch (1 & p[0] >> 4) {
+	case 0:
+		if (! ((ZF & m_->r.f) == ZF * (1 & p[0] >> 3)))
+			return clocks;
+		break;
+	case 1:
+		if (! ((CF & m_->r.f) == CF * (1 & p[0] >> 3)))
+			return clocks;
+		break;
+	}
+	m_->pc = rel_add16 (m_->pc, e, &clocks);
+	return clocks;
 }
 
 // 0X1
@@ -582,14 +636,14 @@ u8 n;
 }
 
 static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
-	  NULL  , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
-	, NULL  , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
-	, NULL  , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
-	, NULL  , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
-	, NULL  , ld_rr_nn , ld_pnn_hl, inc_rr, inc_r , dec_r , ld_r_n, NULL  
-	, NULL  , add_hl_rr, ld_hl_pnn, dec_rr, inc_r , dec_r , ld_r_n, NULL  
-	, NULL  , ld_rr_nn , ld_pnn_a , inc_rr, inc_r , dec_r , ld_r_n, NULL  
-	, NULL  , add_hl_rr, ld_a_pnn , dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	  NULL   , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, NULL   , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	, djnz   , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, jr     , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr, ld_rr_nn , ld_pnn_hl, inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr, add_hl_rr, ld_hl_pnn, dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr, ld_rr_nn , ld_pnn_a , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr, add_hl_rr, ld_a_pnn , dec_rr, inc_r , dec_r , ld_r_n, NULL  
 
 	, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r
 	, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r
@@ -638,7 +692,7 @@ BUG(z80_opcode[*p])
 	++m_->pc;
 	return clocks;
 }
-#endif //ndef Em
+#endif //ndef Ei386
 
 bool z80_init (struct z80 *this_, size_t cb)
 {
