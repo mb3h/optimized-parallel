@@ -1,4 +1,4 @@
-#ifdef Ei386
+#if i386 == Em
 /* cf)
 	Z80 Family CPU User Manual (Rev.05 - Feb'05)
 	Intel IA-32(R) Architectures Software Developer's Manual,
@@ -13,7 +13,8 @@
 	fixed I/O switch timing resolution and modified other several for generality,
 	however his great achievments never fade.
    CAUTION:
-	(*1)must be update 'reg_pc' when memory page is changed.
+	(*1) only reserved bit (b5b3) keep newer on blocking.
+	(*2) must be update 'reg_pc' when memory page is changed.
  */
 #include <stdint.h>
 #include <stdbool.h>
@@ -63,6 +64,7 @@ M "rwfn_priv:" LF
 // z80_s
 __asm__ (
 	".struct 0" LF
+
 M "reg_bc:" LF
 M "reg_c:" NL
 	".struct " M "reg_c +1" LF
@@ -86,10 +88,21 @@ M "reg_sph:" NL
 M "reg_fa:" LF
 M "reg_a:" NL
 	".struct " M "reg_a +1" LF
-M "reg_f:" NL
+M "reg_f:" NL // (*1)
 	".struct " M "reg_f +1 +" sizeofPAD LF
+
+M "alt_bc:" LF
+	".struct " M "alt_bc +2 +" sizeofPAD LF
+M "alt_de:" LF
+	".struct " M "alt_de +2 +" sizeofPAD LF
+M "alt_hl:" LF
+	".struct " M "alt_hl +2 +" sizeofPAD LF
+M "alt_af:" LF
+	".struct " M "alt_af +2 +" sizeofPAD LF
+
 M "reg_pc:" NL
 	".struct " M "reg_pc +2 +" sizeofPAD LF
+
 M "mem:" NL
 	".struct " M "mem +(8 << " LS "log2of_memctl)" LF
 );
@@ -106,32 +119,39 @@ M "mem:" NL
 # define EBX          "%ebx"
 #endif
 
-#define CLK             "%ebp"
-#define EAPC            "%edi"
-#define CPU             "%esi"
-#define A               "%al"
-#define B   M   "reg_b(" CPU ")"
-#define C   M   "reg_c(" CPU ")"
-#define D   M   "reg_d(" CPU ")"
-#define E   M   "reg_e(" CPU ")"
-#define H   M   "reg_h(" CPU ")"
-#define L   M   "reg_l(" CPU ")"
-#define SPH M "reg_sph(" CPU ")"
-#define SPL M "reg_spl(" CPU ")"
-#define BC  M  "reg_bc(" CPU ")"
-#define DE  M  "reg_de(" CPU ")"
-#define HL  M  "reg_hl(" CPU ")"
-#define FA  M  "reg_fa(" CPU ")"
-#define SP  M  "reg_sp(" CPU ")"
-#define PC  M  "reg_pc(" CPU ")"
+#define CLK               "%ebp"
+#define EAPC              "%edi"
+#define CPU               "%esi"
+#define A                 "%al"
+#define B     M   "reg_b(" CPU ")"
+#define C     M   "reg_c(" CPU ")"
+#define D     M   "reg_d(" CPU ")"
+#define E     M   "reg_e(" CPU ")"
+#define H     M   "reg_h(" CPU ")"
+#define L     M   "reg_l(" CPU ")"
+#define UND_F M   "reg_f(" CPU ")" // (*1)
+#define SPH   M "reg_sph(" CPU ")"
+#define SPL   M "reg_spl(" CPU ")"
+#define BC    M  "reg_bc(" CPU ")"
+#define DE    M  "reg_de(" CPU ")"
+#define HL    M  "reg_hl(" CPU ")"
+#define FA    M  "reg_fa(" CPU ")"
+#define SP    M  "reg_sp(" CPU ")"
+#define PC    M  "reg_pc(" CPU ")"
+#define ALTBC M  "alt_bc(" CPU ")"
+#define ALTDE M  "alt_de(" CPU ")"
+#define ALTHL M  "alt_hl(" CPU ")"
+#define ALTAF M  "alt_af(" CPU ")"
 
-#define CF "0x01"
-#define NF "0x02"
-#define VF "0x04"
-//#define PF VF
-#define HF "0x10"
-#define ZF "0x40"
-#define SF "0x80"
+#define  CF "0x01"
+#define  NF "0x02"
+#define  VF "0x04"
+//#define  PF VF
+#define R1F "0x08" // b3 is reserved.
+#define  HF "0x10"
+#define R2F "0x20" // b5 is reserved.
+#define  ZF "0x40"
+#define  SF "0x80"
 	/* cf)          SZ-H-PNC (Z80)
 	                     /
 	                     V
@@ -142,6 +162,8 @@ M "mem:" NL
 
 #define CLK1(clocks, cycles) \
 	"add $" #clocks " +" Tw ",%ebp" NL
+#define al2ST(dst) \
+	"mov " "%al" "," dst NL
 #define dh2ST(dst) \
 	"mov " "%dh" "," dst NL
 #define dl2ST(dst) \
@@ -271,12 +293,12 @@ LCEND(dx2WRITEcx)
 #define dx2WRITEcx \
 	"call " LC "dx2WRITEcx" NL
 
-// CAUTION: (*1)
+// CAUTION: (*2)
 #define FETCH2dl(label) \
 	/* TODO: mem[] */ \
 	"inc " EAPC NL \
 	"movzbl (" EAPC ")," "%edx" NL
-// CAUTION: (*1)
+// CAUTION: (*2)
 #define FETCH2dl2sdx \
 	/* TODO: mem[] */ \
 	"inc " EAPC NL \
@@ -294,35 +316,50 @@ LCEND(dx2WRITEcx)
 	/* TODO: mem[] */ \
 	"add " EDX "," EAPC NL \
 	"ret" NL
-#define eflagsOF2cl2ah \
+//
+#define F2ah \
+	"xor " UND_F ",%ah" NL \
+	"and $(0xff - (" R1F "+" R2F ")),%ah" NL \
+	"xor " UND_F ",%ah" NL
+#define AF2dx \
+	"mov " UND_F ",%dl" NL \
+	"mov " A ",%dh" NL \
+	"xor %ah" ",%dl" NL \
+	"and $(" R1F "+" R2F "),%dl" NL \
+	"xor %ah" ",%dl" NL
+#define dx2AF \
+	"mov %dl,%ah" NL \
+	"mov %dl," UND_F NL \
+	"mov %dh," A NL
+#define Vf2cl2ah \
 	"seto %cl" NL RES2ah(VF "+" NF) "shl $2,%cl" NL "or %cl,%ah" NL
-#define ah2eflags \
+#define ah2fSZHNC \
 	"sahf" NL
-#define eflags2ah \
+#define SZHNCf2ah \
 	"lahf" NL
 #define MADD_A(reg) \
-	"add " reg "," A NL eflags2ah eflagsOF2cl2ah
+	                 "add " reg "," A NL al2ST(UND_F) SZHNCf2ah Vf2cl2ah
 #define MADC_A(reg) \
-	"ror %ah" NL "adc " reg "," A NL eflags2ah eflagsOF2cl2ah
+	"ror %ah" NL     "adc " reg "," A NL al2ST(UND_F) SZHNCf2ah Vf2cl2ah
 #define MSUB(reg) \
-	"sub " reg "," A NL eflags2ah eflagsOF2cl2ah SET2ah(NF)
+	                 "sub " reg "," A NL al2ST(UND_F) SZHNCf2ah Vf2cl2ah SET2ah(NF)
 #define MSBC_A(reg) \
-	"ror %ah" NL "sbb " reg "," A NL eflags2ah eflagsOF2cl2ah SET2ah(NF)
+	"ror %ah" NL     "sbb " reg "," A NL al2ST(UND_F) SZHNCf2ah Vf2cl2ah SET2ah(NF)
 #define MAND(reg) \
-	"and " reg "," A NL eflags2ah RES2ah(NF) SET2ah(HF)
+	                 "and " reg "," A NL al2ST(UND_F) SZHNCf2ah RES2ah(NF) SET2ah(HF)
 #define MXOR(reg) \
-	"xor " reg "," A NL eflags2ah RES2ah(NF "+" HF)
+	                 "xor " reg "," A NL al2ST(UND_F) SZHNCf2ah RES2ah(NF "+" HF)
 #define MOR(reg) \
-	"or " reg "," A NL eflags2ah RES2ah(NF "+" HF)
+	                 "or "  reg "," A NL al2ST(UND_F) SZHNCf2ah RES2ah(NF "+" HF)
 #define MCP(reg) \
-	"mov " reg ",%dh" NL "cmp %dh," A NL eflags2ah eflagsOF2cl2ah SET2ah(NF)
+	"mov " reg ",%dh" NL "cmp %dh," A NL dh2ST(UND_F) SZHNCf2ah Vf2cl2ah SET2ah(NF)
 #define ah2INCdl \
-	ah2eflags "inc %dl" NL eflags2ah eflagsOF2cl2ah
+	ah2fSZHNC "inc %dl" NL dl2ST(UND_F) SZHNCf2ah Vf2cl2ah
 #define ah2DECdl \
-	ah2eflags "dec %dl" NL eflags2ah eflagsOF2cl2ah SET2ah(NF)
+	ah2fSZHNC "dec %dl" NL dl2ST(UND_F) SZHNCf2ah Vf2cl2ah SET2ah(NF)
 #define ah2ADDdx(h,l) \
 	"mov %ah,%cl" NL "add " l ",%dl" NL "adc " h ",%dh" NL \
-	eflags2ah "and $(0xff - (" HF "+" NF "+" CF ")),%cl" NL "and $(" HF "+" CF "),%ah" NL "or %cl,%ah" NL
+	SZHNCf2ah "and $(0xff - (" HF "+" NF "+" CF ")),%cl" NL "and $(" HF "+" CF "),%ah" NL "or %cl,%ah" NL
 
 #define MENDIF(label) LC #label "_unmatch:" NL
 #define MELSE0 MENDIF
@@ -360,6 +397,8 @@ OPFUNC(DEC_BC) LD2dx(BC) "dec " EDX NL CLK1(6,1) dx2ST(BC) OPEND(DEC_BC) // (6+T
 OPFUNC(DEC_DE) LD2dx(DE) "dec " EDX NL CLK1(6,1) dx2ST(DE) OPEND(DEC_DE)
 OPFUNC(DEC_HL) LD2dx(HL) "dec " EDX NL CLK1(6,1) dx2ST(HL) OPEND(DEC_HL)
 OPFUNC(DEC_SP) LD2dx(SP) "dec " EDX NL CLK1(6,1) dx2ST(SP) OPEND(DEC_SP)
+
+OPFUNC(EX_AF_AF) AF2dx "xchg " ALTAF "," EDX NL dx2AF CLK1(4,1) OPEND(EX_AF_AF) // (4+Tw)
 
 OPFUNC(NOP) CLK1(4,1) OPEND(NOP) // (4+Tw)
 
@@ -486,14 +525,14 @@ __asm__ (
 	".section .rodata" NL
 	".type " LC "z80_opcode" ",@object" LF
 LC "z80_opcode:" NL
-	".long " OP   "NOP," OP "LD_BC_NN,"  OP "LD_BC_A,"   OP "INC_BC," OP "INC_B," OP "DEC_B," OP "LD_B_N," OP "NOP" NL
-	".long " OP   "NOP," OP "ADD_HL_BC," OP "LD_A_BC,"   OP "DEC_BC," OP "INC_C," OP "DEC_C," OP "LD_C_N," OP "NOP" NL
-	".long " OP  "DJNZ," OP "LD_DE_NN,"  OP "LD_DE_A,"   OP "INC_DE," OP "INC_D," OP "DEC_D," OP "LD_D_N," OP "NOP" NL
-	".long " OP    "JR," OP "ADD_HL_DE," OP "LD_A_DE,"   OP "DEC_DE," OP "INC_E," OP "DEC_E," OP "LD_E_N," OP "NOP" NL
-	".long " OP "JR_NZ," OP "LD_HL_NN,"  OP "LD_pNN_HL," OP "INC_HL," OP "INC_H," OP "DEC_H," OP "LD_H_N," OP "NOP" NL
-	".long " OP  "JR_Z," OP "ADD_HL_HL," OP "LD_HL_pNN," OP "DEC_HL," OP "INC_L," OP "DEC_L," OP "LD_L_N," OP "NOP" NL
-	".long " OP "JR_NC," OP "LD_SP_NN,"  OP "LD_pNN_A,"  OP "INC_SP," OP "INC_p," OP "DEC_p," OP "LD_p_N," OP "NOP" NL
-	".long " OP  "JR_C," OP "ADD_HL_SP," OP "LD_A_pNN,"  OP "DEC_SP," OP "INC_A," OP "DEC_A," OP "LD_A_N," OP "NOP" NL
+	".long " OP     "NOP,"  OP  "LD_BC_NN," OP "LD_BC_A,"   OP "INC_BC," OP "INC_B," OP "DEC_B," OP "LD_B_N," OP "NOP" NL
+	".long " OP "EX_AF_AF," OP "ADD_HL_BC," OP "LD_A_BC,"   OP "DEC_BC," OP "INC_C," OP "DEC_C," OP "LD_C_N," OP "NOP" NL
+	".long " OP    "DJNZ,"  OP  "LD_DE_NN," OP "LD_DE_A,"   OP "INC_DE," OP "INC_D," OP "DEC_D," OP "LD_D_N," OP "NOP" NL
+	".long " OP    "JR,"    OP "ADD_HL_DE," OP "LD_A_DE,"   OP "DEC_DE," OP "INC_E," OP "DEC_E," OP "LD_E_N," OP "NOP" NL
+	".long " OP    "JR_NZ," OP  "LD_HL_NN," OP "LD_pNN_HL," OP "INC_HL," OP "INC_H," OP "DEC_H," OP "LD_H_N," OP "NOP" NL
+	".long " OP    "JR_Z,"  OP "ADD_HL_HL," OP "LD_HL_pNN," OP "DEC_HL," OP "INC_L," OP "DEC_L," OP "LD_L_N," OP "NOP" NL
+	".long " OP    "JR_NC," OP  "LD_SP_NN," OP "LD_pNN_A,"  OP "INC_SP," OP "INC_p," OP "DEC_p," OP "LD_p_N," OP "NOP" NL
+	".long " OP    "JR_C,"  OP "ADD_HL_SP," OP "LD_A_pNN,"  OP "DEC_SP," OP "INC_A," OP "DEC_A," OP "LD_A_N," OP "NOP" NL
 
 	".long " OP    "NOP," OP "LD_B_C," OP "LD_B_D," OP "LD_B_E," OP "LD_B_H," OP "LD_B_L," OP "LD_B_p," OP "LD_B_A" NL
 	".long " OP "LD_C_B," OP    "NOP," OP "LD_C_D," OP "LD_C_E," OP "LD_C_H," OP "LD_C_L," OP "LD_C_p," OP "LD_C_A" NL
@@ -549,16 +588,17 @@ GFNSTART(exec)
 	"mov " FA "," EAX NL
 
 	"dec " EAPC NL
-	"xor " CLK "," CLK NL
+	"xor " CLK "," CLK LF
 LC "z80_exec_loop:"
 	FETCH2dl(z80_exec)
 	"call *" LC "z80_opcode(," EDX ",4)" NL
 
 	"cmp 24+4(%esp)," CLK NL
 	"jc " LC "z80_exec_loop" NL
+	F2ah
 	"mov " EAX "," FA NL
 	"inc " EAPC NL
-	"mov " PC "," EAX NL // (*1)
+	"mov " PC "," EAX NL // (*2)
 	"and $7 << 13," EAX NL // 7 = (1 << 16 -13) -1
 	"add " EAX "," EAPC NL
 	"shr $13 -2," EAX NL
@@ -579,4 +619,4 @@ LC "z80_exec_loop:"
 	".cfi_def_cfa_offset 4" NL
 GFNEND(exec)
 
-#endif //def Ei386
+#endif // i386 == Em

@@ -17,43 +17,50 @@ struct z80_ {
 	union {
 		struct {
 #if 16 == RRm
-			uint16_t bc, de, hl, sp, fa;
+			uint16_t bc, de, hl, sp, fa,
+			         alt_bc, alt_de, alt_hl, alt_af;
 #else //if 32 == RRm
 # if BYTE_ORDER == LITTLE_ENDIAN
-			uint16_t bc, bc32, de, de32, hl, hl32, sp, sp32, fa, fa32;
+			uint16_t bc, bc32, de, de32, hl, hl32, sp, sp32, fa, fa32,
+			         alt_bc, alt_bc32, alt_de, alt_de32, alt_hl, alt_hl32, alt_af, alt_af32;
 # else
-			uint16_t bc32, bc, de32, de, hl32, hl, sp32, sp, fa32, fa;
+			uint16_t bc32, bc, de32, de, hl32, hl, sp32, sp, fa32, fa,
+			         alt_bc32, alt_bc, alt_de32, alt_de, alt_hl32, alt_hl, alt_af32, alt_af;
 # endif
 #endif
 		} rr;
 #if 16 == RRm
-		uint16_t r16[5];
+		uint16_t r16[9];
 #else //if 32 == RRm
-		uint16_t r16[5 * 2];
+		uint16_t r16[9 * 2];
 #endif
 		struct {
 #if 16 == RRm
 # if BYTE_ORDER == LITTLE_ENDIAN
-			uint8_t c, b, e, d, l, h, spl, sph, f, a;
+			uint8_t c, b, e, d, l, h, spl, sph, f, a,
+			        alt[8];
 # else
-			uint8_t b, c, d, e, h, l, spl, sph, a, f;
+			uint8_t b, c, d, e, h, l, spl, sph, a, f,
+			        alt[8];
 # endif
 #else //if 32 == RRm
 # if BYTE_ORDER == LITTLE_ENDIAN
 			uint8_t c, b, bc2, bc3, e, d, de2, de3,
 			        l, h, hl2, hl3, spl, sph, sp2, sp3,
-			        a, f, fa2, fa3;
+			        a, f, fa2, fa3,
+					  alt[8 * 2];
 # else
 			uint8_t bc3, bc2, b, c, de3, de2, d, e,
 			        hl3, hl2, h, l, sp3, sp2, spl, sph,
-			        fa3, fa2, f, a;
+			        fa3, fa2, f, a,
+					  alt[8 * 2];
 # endif
 #endif
 		} r;
 #if 16 == RRm
-		uint8_t r8[5 * 2];
+		uint8_t r8[9 * 2];
 #else //if 32 == RRm
-		uint8_t r8[5 * 4];
+		uint8_t r8[9 * 4];
 #endif
 	};
 #if 16 == RRm

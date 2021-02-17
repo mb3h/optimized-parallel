@@ -230,12 +230,46 @@ char *begin, *end;
 	*dst = '\0';
 const char *prefix;
 int changed;
-	// A
-BUG(dst +3 +2 < end)
-	changed  = (old && old->r.a == m_->r.a || NULL == old && 0 == m_->r.a) ? 0 : 1;
+	// SP
+BUG(dst +4 +4 < end)
+	changed  = (old && old->rr.sp == m_->rr.sp || NULL == old && 0 == m_->rr.sp) ? 0 : 3;
+	changed |= (old && (u16)(m_->rr.sp +8 - old->rr.sp) < 8) ? 4 : 0;
+	changed |= (old && (u16)(m_->rr.sp    - old->rr.sp) < 8) ? 8 : 0;
 	prefix = ('\0' == *begin) ? "" : sep;
-	if (1 == changed)
-		sprintf (dst, "%s" "A=" "%02X", prefix, m_->r.a);
+	if (11 == changed)
+		sprintf (dst, "%s" "SP=" "+%d", prefix, m_->rr.sp - old->rr.sp);
+	else if (7 == changed)
+		sprintf (dst, "%s" "SP=" "-%d", prefix, old->rr.sp - m_->rr.sp);
+	else if (3 == changed)
+		sprintf (dst, "%s" "SP=" "%04X", prefix, m_->rr.sp);
+	dst = strchr (dst, '\0');
+	// BC'
+BUG(dst +5 +4 < end)
+	changed  = (old && old->rr.alt_bc == m_->rr.alt_bc || NULL == old && 0 == m_->rr.alt_bc) ? 0 : 3;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (3 == changed)
+		sprintf (dst, "%s" "BC'=" "%04X", prefix, m_->rr.alt_bc);
+	dst = strchr (dst, '\0');
+	// DE'
+BUG(dst +5 +4 < end)
+	changed  = (old && old->rr.alt_de == m_->rr.alt_de || NULL == old && 0 == m_->rr.alt_de) ? 0 : 3;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (3 == changed)
+		sprintf (dst, "%s" "DE'=" "%04X", prefix, m_->rr.alt_de);
+	dst = strchr (dst, '\0');
+	// HL'
+BUG(dst +5 +4 < end)
+	changed  = (old && old->rr.alt_hl == m_->rr.alt_hl || NULL == old && 0 == m_->rr.alt_hl) ? 0 : 3;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (3 == changed)
+		sprintf (dst, "%s" "HL'=" "%04X", prefix, m_->rr.alt_hl);
+	dst = strchr (dst, '\0');
+	// AF'
+BUG(dst +5 +4 < end)
+	changed  = (old && old->rr.alt_af == m_->rr.alt_af || NULL == old && 0 == m_->rr.alt_af) ? 0 : 3;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (3 == changed)
+		sprintf (dst, "%s" "AF'=" "%04X", prefix, m_->rr.alt_af);
 	dst = strchr (dst, '\0');
 	// BC
 BUG(dst +3 +2 +3 +2 < end)
@@ -273,18 +307,12 @@ BUG(dst +3 +2 +3 +2 < end)
 	else if (1 == changed)
 		sprintf (dst, "%s" "L=" "%02X", prefix, m_->r.l);
 	dst = strchr (dst, '\0');
-	// SP
-BUG(dst +4 +4 < end)
-	changed  = (old && old->rr.sp == m_->rr.sp || NULL == old && 0 == m_->rr.sp) ? 0 : 3;
-	changed |= (old && (u16)(m_->rr.sp +8 - old->rr.sp) < 8) ? 4 : 0;
-	changed |= (old && (u16)(m_->rr.sp    - old->rr.sp) < 8) ? 8 : 0;
+	// A
+BUG(dst +3 +2 < end)
+	changed  = (old && old->r.a == m_->r.a || NULL == old && 0 == m_->r.a) ? 0 : 1;
 	prefix = ('\0' == *begin) ? "" : sep;
-	if (11 == changed)
-		sprintf (dst, "%s" "SP=" "+%d", prefix, m_->rr.sp - old->rr.sp);
-	else if (7 == changed)
-		sprintf (dst, "%s" "SP=" "-%d", prefix, old->rr.sp - m_->rr.sp);
-	else if (3 == changed)
-		sprintf (dst, "%s" "SP=" "%04X", prefix, m_->rr.sp);
+	if (1 == changed)
+		sprintf (dst, "%s" "A=" "%02X", prefix, m_->r.a);
 	dst = strchr (dst, '\0');
 	return dst - begin;
 }
@@ -294,10 +322,6 @@ static void each_opcode_test (z80_s *m_, const char *test_text_path)
 FILE *fp;
 	if (NULL == (fp = fopen (test_text_path, "r")))
 		return;
-#ifdef Ei386
-	// native emulation tag
-puts ("i386 native emulation.");
-#endif
 size_t line;
 	line = 0;
 	while (!feof (fp)) {
@@ -346,7 +370,21 @@ u16 addr;
 				++p;
 			if (memchr ("\0" "#", *p, 2))
 				break;
-			if ('=' == p[2]) {
+			if ('=' == p[1]) {
+u8 n;
+				n = (u8)strtol (p +2, &q, 16);
+				switch (*p) {
+				case 'B': m_->r.b = n; break;
+				case 'C': m_->r.c = n; break;
+				case 'D': m_->r.d = n; break;
+				case 'E': m_->r.e = n; break;
+				case 'H': m_->r.h = n; break;
+				case 'L': m_->r.l = n; break;
+				case 'A': m_->r.a = n; break;
+				}
+				p = q;
+			}
+			else if ('=' == p[2]) {
 u16 nn;
 				nn = (u16)strtol (p +3, &q, 16);
 				if (0 == memcmp ("BC", p, 2))
@@ -359,18 +397,17 @@ u16 nn;
 					m_->rr.sp = nn;
 				p = q;
 			}
-			else if ('=' == p[1]) {
-u8 n;
-				n = (u8)strtol (p +2, &q, 16);
-				switch (*p) {
-				case 'B': m_->r.b = n; break;
-				case 'C': m_->r.c = n; break;
-				case 'D': m_->r.d = n; break;
-				case 'E': m_->r.e = n; break;
-				case 'H': m_->r.h = n; break;
-				case 'L': m_->r.l = n; break;
-				case 'A': m_->r.a = n; break;
-				}
+			else if ('=' == p[3]) {
+u16 nn;
+				nn = (u16)strtol (p +4, &q, 16);
+				if (0 == memcmp ("BC'", p, 3))
+					m_->rr.alt_bc = nn;
+				else if (0 == memcmp ("DE'", p, 3))
+					m_->rr.alt_de = nn;
+				else if (0 == memcmp ("HL'", p, 3))
+					m_->rr.alt_hl = nn;
+				else if (0 == memcmp ("AF'", p, 3))
+					m_->rr.alt_af = nn;
 				p = q;
 			}
 			else

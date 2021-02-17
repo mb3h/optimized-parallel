@@ -37,7 +37,7 @@ typedef   int8_t s8;
 #define ZF 0x40
 #define SF 0x80
 
-#ifndef Ei386 // emulation not optimized.
+#ifndef Em // emulation not optimized.
 # define PTR16(mmap8, addr) ((mmap8)[7 & (addr) >> 13].raw_or_rwfn)
 # define PTR16OFS(addr) (0x1FFF & (addr))
 
@@ -250,6 +250,21 @@ u8 alu;
 }
 
 // 0X0
+static unsigned nop (z80_s *m_, const u8 *p)
+{
+	return M1;
+}
+static unsigned ex_af_af (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u16 nn;
+	nn = m_->rr.alt_af;
+	m_->rr.alt_af = m_->r.a << 8 | m_->r.f;
+	m_->rr.fa = (0xff & nn >> 8) | (0xff00 & nn << 8);
+	return clocks;
+}
 static unsigned djnz (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -636,14 +651,14 @@ u8 n;
 }
 
 static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
-	  NULL   , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
-	, NULL   , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
-	, djnz   , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
-	, jr     , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
-	, cond_jr, ld_rr_nn , ld_pnn_hl, inc_rr, inc_r , dec_r , ld_r_n, NULL  
-	, cond_jr, add_hl_rr, ld_hl_pnn, dec_rr, inc_r , dec_r , ld_r_n, NULL  
-	, cond_jr, ld_rr_nn , ld_pnn_a , inc_rr, inc_r , dec_r , ld_r_n, NULL  
-	, cond_jr, add_hl_rr, ld_a_pnn , dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	  nop     , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, ex_af_af, add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	, djnz    , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, jr      , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr , ld_rr_nn , ld_pnn_hl, inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr , add_hl_rr, ld_hl_pnn, dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr , ld_rr_nn , ld_pnn_a , inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr , add_hl_rr, ld_a_pnn , dec_rr, inc_r , dec_r , ld_r_n, NULL  
 
 	, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r
 	, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r, ld_r_r
@@ -692,7 +707,7 @@ BUG(z80_opcode[*p])
 	++m_->pc;
 	return clocks;
 }
-#endif //ndef Ei386
+#endif //ndef Em
 
 bool z80_init (struct z80 *this_, size_t cb)
 {
