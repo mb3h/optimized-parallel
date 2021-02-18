@@ -29,13 +29,15 @@ typedef   int8_t s8;
 
 #define arraycountof(x) (sizeof(x)/sizeof((x)[0]))
 
-#define CF 0x01
-#define NF 0x02
-#define VF 0x04
-#define PF VF
-#define HF 0x10
-#define ZF 0x40
-#define SF 0x80
+#define  CF 0x01
+#define  NF 0x02
+#define  VF 0x04
+#define  PF VF
+#define R1F 0x08 // b3 is reserved.
+#define  HF 0x10
+#define R2F 0x20 // b5 is reserved.
+#define  ZF 0x40
+#define  SF 0x80
 
 #ifndef Em // emulation not optimized.
 # define PTR16(mmap8, addr) ((mmap8)[7 & (addr) >> 13].raw_or_rwfn)
@@ -133,7 +135,8 @@ static u8 inc8 (u8 lhs, u8 *f)
 BUG(f)
 u8 alu;
 	alu = (u8)(lhs +1);
-	*f &= ~(SF|ZF|HF|VF|NF);
+	*f &= ~(SF|ZF|HF|VF|NF|R1F|R2F);
+	*f |= (R1F|R2F) & alu;
 	*f |= (0x7F < alu) ? SF : 0;
 	*f |= (0x00 == alu) ? ZF : 0;
 	*f |= (0x00 == (0x0F & alu)) ? HF : 0;
@@ -145,7 +148,8 @@ static u8 dec8 (u8 lhs, u8 *f)
 BUG(f)
 u8 alu;
 	alu = (u8)(lhs +0xFF);
-	*f &= ~(SF|ZF|HF|VF);
+	*f &= ~(SF|ZF|HF|VF|NF|R1F|R2F);
+	*f |= (R1F|R2F) & alu;
 	*f |= (0x7F < alu) ? SF : 0;
 	*f |= (0x00 == alu) ? ZF : 0;
 	*f |= (0x0F == (0x0F & alu)) ? HF : 0;
@@ -158,7 +162,8 @@ static u8 add8 (u8 lhs, u8 rhs, u8 *f)
 BUG(f)
 u8 alu;
 	alu = (u8)(lhs + rhs);
-	*f &= ~(SF|ZF|HF|VF|CF);
+	*f &= 0; // ~(SF|ZF|HF|VF|NF|CF|R1F|R2F)
+	*f |= (R1F|R2F) & alu;
 	*f |= (15 < (15 & lhs) + (15 & rhs)) ? HF : 0;
 	*f |= (0x7F < alu) ? SF : 0;
 	*f |= (0x00 == alu) ? ZF : 0;
@@ -173,7 +178,8 @@ u8 cy;
 	cy = (CF & *f) ? 1 : 0;
 u8 alu;
 	alu = (u8)(lhs + rhs + cy);
-	*f &= ~(SF|ZF|HF|VF|CF);
+	*f &= 0; // ~(SF|ZF|HF|VF|NF|CF|R1F|R2F)
+	*f |= (R1F|R2F) & alu;
 	*f |= (15 < (15 & lhs) + (15 & rhs) + cy) ? HF : 0;
 	*f |= (0x7F < alu) ? SF : 0;
 	*f |= (0x00 == alu) ? ZF : 0;
@@ -186,7 +192,8 @@ static u8 sub8 (u8 lhs, u8 rhs, u8 *f)
 BUG(f)
 u8 alu;
 	alu = (u8)(lhs +0x100 - rhs);
-	*f &= ~(SF|ZF|HF|VF|CF);
+	*f &= 0; // ~(SF|ZF|HF|VF|NF|CF|R1F|R2F)
+	*f |= (R1F|R2F) & alu;
 	*f |= ((15 & lhs) - (15 & rhs) < 0) ? HF : 0;
 	*f |= (0x7F < alu) ? SF : 0;
 	*f |= (0x00 == alu) ? ZF : 0;
@@ -202,7 +209,8 @@ u8 cy;
 	cy = (CF & *f) ? 1 : 0;
 u8 alu;
 	alu = (u8)(lhs +0x100 - cy - rhs);
-	*f &= ~(SF|ZF|HF|VF|CF);
+	*f &= 0; // ~(SF|ZF|HF|VF|NF|CF|R1F|R2F)
+	*f |= (R1F|R2F) & alu;
 	*f |= ((15 & lhs) - (15 & rhs) - cy < 0) ? HF : 0;
 	*f |= (0x7F < alu) ? SF : 0;
 	*f |= (0x00 == alu) ? ZF : 0;
@@ -219,7 +227,8 @@ static u8 and8 (u8 lhs, u8 rhs, u8 *f)
 BUG(f)
 u8 alu;
 	alu = (u8)(lhs & rhs);
-	*f &= ~(SF|ZF|HF|VF|NF|CF);
+	*f &= 0; // ~(SF|ZF|HF|VF|NF|CF|R1F|R2F)
+	*f |= (R1F|R2F) & alu;
 	*f |= HF;
 	*f |= (0x7F < alu) ? SF : 0;
 	*f |= (0x00 == alu) ? ZF : 0;
@@ -231,7 +240,8 @@ static u8 xor8 (u8 lhs, u8 rhs, u8 *f)
 BUG(f)
 u8 alu;
 	alu = (u8)(lhs ^ rhs);
-	*f &= ~(SF|ZF|HF|VF|NF|CF);
+	*f &= 0; // ~(SF|ZF|HF|VF|NF|CF|R1F|R2F)
+	*f |= (R1F|R2F) & alu;
 	*f |= (0x7F < alu) ? SF : 0;
 	*f |= (0x00 == alu) ? ZF : 0;
 	*f |= !(odd_even[15 & alu] ^ odd_even[15 & alu >> 4]) ? PF : 0;
@@ -242,11 +252,20 @@ static u8 or8 (u8 lhs, u8 rhs, u8 *f)
 BUG(f)
 u8 alu;
 	alu = (u8)(lhs | rhs);
-	*f &= ~(SF|ZF|HF|VF|NF|CF);
+	*f &= 0; // ~(SF|ZF|HF|VF|NF|CF|R1F|R2F)
+	*f |= (R1F|R2F) & alu;
 	*f |= (0x7F < alu) ? SF : 0;
 	*f |= (0x00 == alu) ? ZF : 0;
 	*f |= !(odd_even[15 & alu] ^ odd_even[15 & alu >> 4]) ? PF : 0;
 	return alu;
+}
+static u8 cp8 (u8 lhs, u8 rhs, u8 *f)
+{
+BUG(f)
+	sub8 (lhs, rhs, f);
+	*f &= ~(R1F|R2F);
+	*f |= (R1F|R2F) & rhs;
+	return lhs;
 }
 
 // 0X0
@@ -564,7 +583,7 @@ unsigned clocks;
 	clocks = M1;
 u8 n;
 	n = r8_read_to_n (m_, 7 & p[0], &clocks);
-	sub8 (m_->r.a, n, &m_->r.f);
+	cp8 (m_->r.a, n, &m_->r.f);
 	return clocks;
 }
 
@@ -646,7 +665,7 @@ unsigned clocks;
 	clocks = M1;
 u8 n;
 	n = fetch_to_n (m_, &clocks);
-	sub8 (m_->r.a, n, &m_->r.f);
+	cp8 (m_->r.a, n, &m_->r.f);
 	return clocks;
 }
 
