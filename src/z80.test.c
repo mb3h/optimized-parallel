@@ -157,15 +157,25 @@ u16 nn;
 		break;
 	case 3:
 		switch (z) {
+		case 1:
+			if (3 == y) {
+				if (dst)
+					strcpy (dst, "EXX");
+			}
+			break;
+		case 3:
+			if (5 == y) {
+				if (dst)
+					sprintf (dst, "%-4s %s,%s", "EX", r16[1], r16[2]);
+			}
+			break;
 		case 6:
 			n = *++src;
 			if (dst)
 				sprintf (dst, "%-4s %s%s%02Xh", regop[y], regop8[y], (0x9F < n) ? "0" : "", n);
 			break;
 		case 0:
-		case 1:
 		case 2:
-		case 3:
 		case 4:
 		case 5:
 		case 7:

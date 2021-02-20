@@ -178,6 +178,12 @@ M "mem:" NL
 	"mov " src "," EDX NL
 #define dx2ST(dst) \
 	"mov " EDX "," dst NL
+#define LD2bx(src) \
+	"mov " src "," EBX NL
+#define bx2ST(dst) \
+	"mov " EBX "," dst NL
+#define SWAPdx(src) \
+	"XCHG " src "," EDX NL
 
 #define GFNSTART(label) \
 	__asm__ ( \
@@ -398,7 +404,14 @@ OPFUNC(DEC_DE) LD2dx(DE) "dec " EDX NL CLK1(6,1) dx2ST(DE) OPEND(DEC_DE)
 OPFUNC(DEC_HL) LD2dx(HL) "dec " EDX NL CLK1(6,1) dx2ST(HL) OPEND(DEC_HL)
 OPFUNC(DEC_SP) LD2dx(SP) "dec " EDX NL CLK1(6,1) dx2ST(SP) OPEND(DEC_SP)
 
-OPFUNC(EX_AF_AF) AF2dx "xchg " ALTAF "," EDX NL dx2AF CLK1(4,1) OPEND(EX_AF_AF) // (4+Tw)
+OPFUNC(EX_AF_AF) AF2dx SWAPdx(ALTAF) NL dx2AF CLK1(4,1) OPEND(EX_AF_AF) // (4+Tw)
+OPFUNC(EX_DE_HL) LD2dx(DE) LD2bx(HL) CLK1(4,1) dx2ST(HL) bx2ST(DE) OPEND(EX_DE_HL)
+OPFUNC(EXX)
+	LD2dx(ALTBC) SWAPdx(BC) dx2ST(ALTBC)
+	LD2dx(ALTDE) SWAPdx(DE) dx2ST(ALTDE)
+	LD2dx(ALTHL) SWAPdx(HL) dx2ST(ALTHL)
+	CLK1(4,1)
+OPEND(EXX)
 
 OPFUNC(NOP) CLK1(4,1) OPEND(NOP) // (4+Tw)
 
@@ -555,9 +568,9 @@ LC "z80_opcode:" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "ADD_A_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "ADC_A_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "SUB_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
+	".long " OP "NOP," OP "EXX," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "NOP," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "OR_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
 
