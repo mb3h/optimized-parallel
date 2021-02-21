@@ -332,6 +332,10 @@ static void each_opcode_test (z80_s *m_, const char *test_text_path)
 FILE *fp;
 	if (NULL == (fp = fopen (test_text_path, "r")))
 		return;
+#ifdef Ei386
+	// native emulation tag
+puts ("i386 native emulation.");
+#endif //def Ei386
 size_t line;
 	line = 0;
 	while (!feof (fp)) {

@@ -1,4 +1,4 @@
-#if i386 == Em
+#ifdef Ei386
 /* cf)
 	Z80 Family CPU User Manual (Rev.05 - Feb'05)
 	Intel IA-32(R) Architectures Software Developer's Manual,
@@ -632,4 +632,4 @@ LC "z80_exec_loop:"
 	".cfi_def_cfa_offset 4" NL
 GFNEND(exec)
 
-#endif // i386 == Em
+#endif //def Ei386

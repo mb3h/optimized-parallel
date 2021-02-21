@@ -28,6 +28,7 @@ typedef uint16_t u16;
 typedef   int8_t s8;
 
 #define arraycountof(x) (sizeof(x)/sizeof((x)[0]))
+#define swap(a, b, t) t = a, a = b, b = t;
 
 #define  CF 0x01
 #define  NF 0x02
@@ -39,7 +40,7 @@ typedef   int8_t s8;
 #define  ZF 0x40
 #define  SF 0x80
 
-#ifndef Em // emulation not optimized.
+#ifndef Ei386 // emulation not optimized.
 # define PTR16(mmap8, addr) ((mmap8)[7 & (addr) >> 13].raw_or_rwfn)
 # define PTR16OFS(addr) (0x1FFF & (addr))
 
@@ -587,6 +588,30 @@ u8 n;
 	return clocks;
 }
 
+// 3X1
+static unsigned exx (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u16 t;
+	swap(m_->rr.alt_hl, m_->rr.hl, t);
+	swap(m_->rr.alt_de, m_->rr.de, t);
+	swap(m_->rr.alt_bc, m_->rr.bc, t);
+	return clocks;
+}
+
+// 3X3
+static unsigned ex_de_hl (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u16 t;
+	swap(m_->rr.de, m_->rr.hl, t);
+	return clocks;
+}
+
 // 3X6
 static unsigned add_n (z80_s *m_, const u8 *p)
 {
@@ -697,14 +722,14 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r 
 	,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r 
 
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , add_n , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , adc_n , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , sub_n , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , sbc_n , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , and_n , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  , xor_n , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  ,  or_n , NULL  
-	, NULL  , NULL  , NULL  , NULL  , NULL  , NULL  ,  cp_n , NULL  
+	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  , add_n , NULL  
+	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  , adc_n , NULL  
+	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  , sub_n , NULL  
+	, NULL  , exx   , NULL  , NULL    , NULL  , NULL  , sbc_n , NULL  
+	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  , and_n , NULL  
+	, NULL  , NULL  , NULL  , ex_de_hl, NULL  , NULL  , xor_n , NULL  
+	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  ,  or_n , NULL  
+	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  ,  cp_n , NULL  
 };
 
 unsigned __attribute__((stdcall)) z80_exec (struct z80 *this_, unsigned min_clocks)
@@ -726,7 +751,7 @@ BUG(z80_opcode[*p])
 	++m_->pc;
 	return clocks;
 }
-#endif //ndef Em
+#endif //ndef Ei386
 
 bool z80_init (struct z80 *this_, size_t cb)
 {
