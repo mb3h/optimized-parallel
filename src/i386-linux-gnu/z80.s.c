@@ -318,6 +318,17 @@ LCEND(dx2WRITEcx)
 	"or $(" mask "),%ah" NL
 #define RES2ah(mask) \
 	"and $(0xff - (" mask ")),%ah" NL
+
+#define dx2EA(dst) \
+	/* TODO: optimize */ \
+	"mov " EDX "," dst NL \
+	"shr $13 -2," EDX NL \
+	"and $7 << 2," EDX NL \
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," EDX ",2)," EDX NL \
+	"and $0x1FFF," dst NL \
+	"add " EDX "," dst NL \
+	"ret" NL
+
 #define sdx2JR \
 	/* TODO: mem[] */ \
 	"add " EDX "," EAPC NL \
@@ -379,6 +390,12 @@ OPFUNC(JR_NZ) MIFNZ(JR_NZ) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NZ) CLK1(7,2
 OPFUNC(JR_Z)   MIFZ(JR_Z)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_Z)  CLK1(7,2) "inc " EAPC NL OPEND(JR_Z) 
 OPFUNC(JR_NC) MIFNC(JR_NC) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NC) CLK1(7,2) "inc " EAPC NL OPEND(JR_NC)
 OPFUNC(JR_C)   MIFC(JR_C)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_C)  CLK1(7,2) "inc " EAPC NL OPEND(JR_C) 
+
+
+OPFUNC(JP_NZ) CLK1(10,3) MIFNZ(JP_NZ) FETCH2dx(JP_NZ) dx2EA(EAPC) MELSE0(JP_NZ) "add $2," EAPC NL OPEND(JP_NZ) // (4+Tw,3,3)
+OPFUNC(JP_Z)  CLK1(10,3) MIFNZ(JP_Z)  FETCH2dx(JP_Z)  dx2EA(EAPC) MELSE0(JP_Z)  "add $2," EAPC NL OPEND(JP_Z) 
+OPFUNC(JP_NC) CLK1(10,3) MIFNZ(JP_NC) FETCH2dx(JP_NC) dx2EA(EAPC) MELSE0(JP_NC) "add $2," EAPC NL OPEND(JP_NC)
+OPFUNC(JP_C)  CLK1(10,3) MIFNZ(JP_C)  FETCH2dx(JP_C)  dx2EA(EAPC) MELSE0(JP_C)  "add $2," EAPC NL OPEND(JP_C) 
 
 OPFUNC(DJNZ)
 	"mov " B ",%dl" NL
@@ -565,14 +582,14 @@ LC "z80_opcode:" NL
 	".long " OP    "OR_B," OP    "OR_C," OP    "OR_D," OP    "OR_E," OP    "OR_H," OP    "OR_L," OP    "OR_p," OP    "OR_A" NL
 	".long " OP    "CP_B," OP    "CP_C," OP    "CP_D," OP    "CP_E," OP    "CP_H," OP    "CP_L," OP    "CP_p," OP    "CP_A" NL
 
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "ADD_A_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "ADC_A_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "SUB_N," OP "NOP" NL
-	".long " OP "NOP," OP "EXX," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "OR_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "JP_NZ," OP "NOP," OP "NOP," OP "NOP," OP "ADD_A_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "JP_Z,"  OP "NOP," OP "NOP," OP "NOP," OP "ADC_A_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "JP_NC," OP "NOP," OP "NOP," OP "NOP," OP   "SUB_N," OP "NOP" NL
+	".long " OP "NOP," OP "EXX," OP "JP_C,"  OP "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP  "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP  "NOP," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP  "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "OR_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP  "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
 
 	".size " LC "z80_opcode" ",.-" LC "z80_opcode" NL
 );
