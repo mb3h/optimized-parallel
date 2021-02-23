@@ -163,6 +163,12 @@ u16 nn;
 					strcpy (dst, "EXX");
 			}
 			break;
+		case 2:
+			nn = load_le16 (++src);
+			++src;
+			if (dst)
+				sprintf (dst, "%-4s %s,%s%04Xh", "JP", cond[y], (0x9FFF < nn) ? "0" : "", nn);
+			break;
 		case 3:
 			if (5 == y) {
 				if (dst)
@@ -175,7 +181,6 @@ u16 nn;
 				sprintf (dst, "%-4s %s%s%02Xh", regop[y], regop8[y], (0x9F < n) ? "0" : "", n);
 			break;
 		case 0:
-		case 2:
 		case 4:
 		case 5:
 		case 7:

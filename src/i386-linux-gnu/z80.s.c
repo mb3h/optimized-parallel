@@ -108,16 +108,20 @@ M "mem:" NL
 );
 
 #if 16 == RRm
-# define EAX          "%ax"
-# define ECX          "%cx"
-# define EDX          "%dx"
-# define EBX          "%bx"
+# define AX           "%ax"
+# define CX           "%cx"
+# define DX           "%dx"
+# define BX           "%bx"
 #else //if 32 == RRm
-# define EAX          "%eax"
-# define ECX          "%ecx"
-# define EDX          "%edx"
-# define EBX          "%ebx"
+# define AX           "%eax"
+# define CX           "%ecx"
+# define DX           "%edx"
+# define BX           "%ebx"
 #endif
+#define EAX          AX
+#define ECX          CX
+#define EDX          DX
+#define EBX          BX
 
 #define CLK               "%ebp"
 #define EAPC              "%edi"
@@ -171,19 +175,19 @@ M "mem:" NL
 #define LD2dl(src) \
 	"mov " src "," "%dl" NL
 #define dx2cx \
-	"mov " EDX "," ECX NL
+	"mov " DX "," CX NL
 #define LD2cx(src) \
-	"mov " src "," ECX NL
+	"mov " src "," CX NL
 #define LD2dx(src) \
-	"mov " src "," EDX NL
+	"mov " src "," DX NL
 #define dx2ST(dst) \
-	"mov " EDX "," dst NL
+	"mov " DX "," dst NL
 #define LD2bx(src) \
-	"mov " src "," EBX NL
+	"mov " src "," BX NL
 #define bx2ST(dst) \
-	"mov " EBX "," dst NL
+	"mov " BX "," dst NL
 #define SWAPdx(src) \
-	"XCHG " src "," EDX NL
+	"XCHG " src "," DX NL
 
 #define GFNSTART(label) \
 	__asm__ ( \
@@ -223,70 +227,70 @@ M "mem:" NL
 	);
 
 LCFUNC(cxREAD2dl)
-	"mov " ECX "," EBX NL
-	"shr $13 -2," ECX NL
-	"and $7 << 2," ECX NL // 7 = (1 << 16 -13) -1
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," ECX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
-	"and $0x1FFF," EBX NL // 0x1FFF = (1 << 13) -1
-	"mov (" ECX "," EBX ",1),%dl" NL
+	"mov " CX "," BX NL
+	"shr $13 -2," CX NL
+	"and $7 << 2," CX NL // 7 = (1 << 16 -13) -1
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," CX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+	"and $0x1FFF," BX NL // 0x1FFF = (1 << 13) -1
+	"mov (" ECX "," BX ",1),%dl" NL
 LCEND(cxREAD2dl)
 
 LCFUNC(cxREAD2dx)
-	/* TODO: */
-	"mov " ECX "," EBX NL
-	"lea 1(" EBX ")," EDX NL
-	"test $0x1FFF," EDX NL // 0x1FFF = (1 << 13) -1
+	/* TODO: rwfn / iofn */
+	"lea 1(" CX ")," DX NL
+	"test $0x1FFF," DX NL // 0x1FFF = (1 << 13) -1
 	"jz " LC "cxREAD2dx" "_ladder_two_pages" NL
-	"shr $13 -2," EBX NL
-	"and $7 << 2," EBX NL // 7 = (1 << 16 -13) -1
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," EBX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+	"shr $13 -2," CX NL
+	"and $7 << 2," CX NL // 7 = (1 << 16 -13) -1
+	"mov " CX "," BX NL
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," BX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
 //LC "cxREAD2dx" "_raw:" NL
-	"and $0x1FFF," EDX NL // 0x1FFF = (1 << 13) -1
-	"movzwl -1(" ECX "," EDX ",1)," EDX NL
+	"and $0x1FFF," DX NL // 0x1FFF = (1 << 13) -1
+	"movzwl -1(" ECX "," DX ",1)," DX NL
 	"ret" LF
 LC "cxREAD2dx" "_ladder_two_pages:" NL
-	"push " EBX NL
+	"push " CX NL
 	"call " LC "cxREAD2dl" NL
-	"pop " EBX NL
-	"inc " EBX NL
-	"push " EDX NL
+	"pop " CX NL
+	"inc " CX NL
+	"push " DX NL
 	"call " LC "cxREAD2dl" NL
-	"pop " EBX NL
-	"shl $8," EDX NL
-	"or " EBX "," EDX NL
+	"pop " BX NL
+	"shl $8," DX NL
+	"or " BX "," DX NL
 LCEND(cxREAD2dx)
 
 // broken: ebx
 LCFUNC(dl2WRITEcx)
-	"mov " ECX "," EBX NL
-	"shr $13 -2," ECX NL
-	"and $7 << 2," ECX NL // 7 = (1 << 16 -13) -1
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," ECX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
-	"and $0x1FFF," EBX NL // 0x1FFF = (1 << 13) -1
-	"mov %dl,(" ECX "," EBX ",1)" NL
+	"mov " CX "," BX NL
+	"shr $13 -2," CX NL
+	"and $7 << 2," CX NL // 7 = (1 << 16 -13) -1
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," CX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+	"and $0x1FFF," BX NL // 0x1FFF = (1 << 13) -1
+	"mov %dl,(" ECX "," BX ",1)" NL
 LCEND(dl2WRITEcx)
 
 // broken: ebx edx
 LCFUNC(dx2WRITEcx)
 	"jz " LC "dx2WRITEcx" "_ladder_two_pages" NL
-	"lea 1(" ECX ")," EBX NL // b:addr+1(b15..b0)
-	"test $0x1FFF," EBX NL // 0x1FFF = (1 << 13) -1
+	"lea 1(" CX ")," BX NL // b:addr+1(b15..b0)
+	"test $0x1FFF," BX NL // 0x1FFF = (1 << 13) -1
 	"jz " LC "dx2WRITEcx" "_ladder_two_pages" NL
-	"shr $13 -2," ECX NL
-	"and $7 << 2," ECX NL // 7 = (1 << 16 -13) -1
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," ECX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+	"shr $13 -2," CX NL
+	"and $7 << 2," CX NL // 7 = (1 << 16 -13) -1
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," CX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
 //LC "dx2WRITEcx" "_raw:" NL
-	"and $0x1FFF," EBX NL // 0x1FFF = (1 << 13) -1
-	"mov %dx,-1(" ECX "," EBX ",1)" NL
+	"and $0x1FFF," BX NL // 0x1FFF = (1 << 13) -1
+	"mov %dx,-1(" ECX "," BX ",1)" NL
 	"ret" LF
 LC "dx2WRITEcx" "_ladder_two_pages:" NL
-	"push " EDX NL
-	"push " ECX NL
+	"push " DX NL
+	"push " CX NL
 	"call " LC "dl2WRITEcx" NL
-	"pop " ECX NL
-	"inc " ECX NL
-	"pop " EDX NL
-	"shr $8," EDX NL
+	"pop " CX NL
+	"inc " CX NL
+	"pop " DX NL
+	"shr $8," DX NL
 	"jmp " LC "dl2WRITEcx" NL
 LCEND(dx2WRITEcx)
 
@@ -319,14 +323,15 @@ LCEND(dx2WRITEcx)
 #define RES2ah(mask) \
 	"and $(0xff - (" mask ")),%ah" NL
 
-#define dx2EA(dst) \
+#define LD2EAPC(reg) \
 	/* TODO: optimize */ \
-	"mov " EDX "," dst NL \
-	"shr $13 -2," EDX NL \
-	"and $7 << 2," EDX NL \
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," EDX ",2)," EDX NL \
-	"and $0x1FFF," dst NL \
-	"add " EDX "," dst NL \
+	"mov " reg "," EAPC NL \
+	"shr $13 -2," reg NL \
+	"and $7 << 2," reg NL \
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," reg ",2)," reg NL \
+	"and $0x1FFF," EAPC NL \
+	"add " reg "," EAPC NL \
+	"dec " EAPC NL \
 	"ret" NL
 
 #define sdx2JR \
@@ -384,18 +389,26 @@ LCEND(dx2WRITEcx)
 #define  MIFZ(label) "test $" ZF ",%ah" NL "jz  " LC #label "_unmatch" NL
 #define MIFNC(label) "test $" CF ",%ah" NL "jnz " LC #label "_unmatch" NL
 #define  MIFC(label) "test $" CF ",%ah" NL "jz  " LC #label "_unmatch" NL
+#define MIFPO(label) "test $" VF ",%ah" NL "jnz " LC #label "_unmatch" NL
+#define MIFPE(label) "test $" VF ",%ah" NL "jz  " LC #label "_unmatch" NL
+#define  MIFP(label) "test $" SF ",%ah" NL "jnz " LC #label "_unmatch" NL
+#define  MIFM(label) "test $" SF ",%ah" NL "jz  " LC #label "_unmatch" NL
 
 OPFUNC(JR)                 FETCH2dl2sdx CLK1(12,3) sdx2JR                                        OPEND(JR)    // (4+Tw,3,5)
 OPFUNC(JR_NZ) MIFNZ(JR_NZ) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NZ) CLK1(7,2) "inc " EAPC NL OPEND(JR_NZ) // (4+Tw,3[,5])
-OPFUNC(JR_Z)   MIFZ(JR_Z)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_Z)  CLK1(7,2) "inc " EAPC NL OPEND(JR_Z) 
+OPFUNC(JR_Z)  MIFZ (JR_Z)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_Z)  CLK1(7,2) "inc " EAPC NL OPEND(JR_Z) 
 OPFUNC(JR_NC) MIFNC(JR_NC) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NC) CLK1(7,2) "inc " EAPC NL OPEND(JR_NC)
-OPFUNC(JR_C)   MIFC(JR_C)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_C)  CLK1(7,2) "inc " EAPC NL OPEND(JR_C) 
+OPFUNC(JR_C)  MIFC (JR_C)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_C)  CLK1(7,2) "inc " EAPC NL OPEND(JR_C) 
 
 
-OPFUNC(JP_NZ) CLK1(10,3) MIFNZ(JP_NZ) FETCH2dx(JP_NZ) dx2EA(EAPC) MELSE0(JP_NZ) "add $2," EAPC NL OPEND(JP_NZ) // (4+Tw,3,3)
-OPFUNC(JP_Z)  CLK1(10,3) MIFNZ(JP_Z)  FETCH2dx(JP_Z)  dx2EA(EAPC) MELSE0(JP_Z)  "add $2," EAPC NL OPEND(JP_Z) 
-OPFUNC(JP_NC) CLK1(10,3) MIFNZ(JP_NC) FETCH2dx(JP_NC) dx2EA(EAPC) MELSE0(JP_NC) "add $2," EAPC NL OPEND(JP_NC)
-OPFUNC(JP_C)  CLK1(10,3) MIFNZ(JP_C)  FETCH2dx(JP_C)  dx2EA(EAPC) MELSE0(JP_C)  "add $2," EAPC NL OPEND(JP_C) 
+OPFUNC(JP_NZ) CLK1(10,3) MIFNZ(JP_NZ) FETCH2dx(JP_NZ) LD2EAPC(DX) MELSE0(JP_NZ) "add $2," EAPC NL OPEND(JP_NZ) // (4+Tw,3,3)
+OPFUNC(JP_Z)  CLK1(10,3) MIFZ (JP_Z)  FETCH2dx(JP_Z)  LD2EAPC(DX) MELSE0(JP_Z)  "add $2," EAPC NL OPEND(JP_Z) 
+OPFUNC(JP_NC) CLK1(10,3) MIFNC(JP_NC) FETCH2dx(JP_NC) LD2EAPC(DX) MELSE0(JP_NC) "add $2," EAPC NL OPEND(JP_NC)
+OPFUNC(JP_C)  CLK1(10,3) MIFC (JP_C)  FETCH2dx(JP_C)  LD2EAPC(DX) MELSE0(JP_C)  "add $2," EAPC NL OPEND(JP_C) 
+OPFUNC(JP_PO) CLK1(10,3) MIFPO(JP_PO) FETCH2dx(JP_PO) LD2EAPC(DX) MELSE0(JP_PO) "add $2," EAPC NL OPEND(JP_PO)
+OPFUNC(JP_PE) CLK1(10,3) MIFPE(JP_PE) FETCH2dx(JP_PE) LD2EAPC(DX) MELSE0(JP_PE) "add $2," EAPC NL OPEND(JP_PE)
+OPFUNC(JP_P)  CLK1(10,3) MIFP (JP_P)  FETCH2dx(JP_P)  LD2EAPC(DX) MELSE0(JP_P)  "add $2," EAPC NL OPEND(JP_P) 
+OPFUNC(JP_M)  CLK1(10,3) MIFM (JP_M)  FETCH2dx(JP_M)  LD2EAPC(DX) MELSE0(JP_M)  "add $2," EAPC NL OPEND(JP_M) 
 
 OPFUNC(DJNZ)
 	"mov " B ",%dl" NL
@@ -411,15 +424,15 @@ OPFUNC(ADD_HL_DE) LD2dx(HL) ah2ADDdx(D,E)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND
 OPFUNC(ADD_HL_HL) LD2dx(HL) ah2ADDdx(H,L)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_HL)
 OPFUNC(ADD_HL_SP) LD2dx(HL) ah2ADDdx(SPH,SPL) dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_SP)
 
-OPFUNC(INC_BC) LD2dx(BC) "inc " EDX NL CLK1(6,1) dx2ST(BC) OPEND(INC_BC) // (6+Tw)
-OPFUNC(INC_DE) LD2dx(DE) "inc " EDX NL CLK1(6,1) dx2ST(DE) OPEND(INC_DE)
-OPFUNC(INC_HL) LD2dx(HL) "inc " EDX NL CLK1(6,1) dx2ST(HL) OPEND(INC_HL)
-OPFUNC(INC_SP) LD2dx(SP) "inc " EDX NL CLK1(6,1) dx2ST(SP) OPEND(INC_SP)
+OPFUNC(INC_BC) LD2dx(BC) "inc " DX NL CLK1(6,1) dx2ST(BC) OPEND(INC_BC) // (6+Tw)
+OPFUNC(INC_DE) LD2dx(DE) "inc " DX NL CLK1(6,1) dx2ST(DE) OPEND(INC_DE)
+OPFUNC(INC_HL) LD2dx(HL) "inc " DX NL CLK1(6,1) dx2ST(HL) OPEND(INC_HL)
+OPFUNC(INC_SP) LD2dx(SP) "inc " DX NL CLK1(6,1) dx2ST(SP) OPEND(INC_SP)
 
-OPFUNC(DEC_BC) LD2dx(BC) "dec " EDX NL CLK1(6,1) dx2ST(BC) OPEND(DEC_BC) // (6+Tw)
-OPFUNC(DEC_DE) LD2dx(DE) "dec " EDX NL CLK1(6,1) dx2ST(DE) OPEND(DEC_DE)
-OPFUNC(DEC_HL) LD2dx(HL) "dec " EDX NL CLK1(6,1) dx2ST(HL) OPEND(DEC_HL)
-OPFUNC(DEC_SP) LD2dx(SP) "dec " EDX NL CLK1(6,1) dx2ST(SP) OPEND(DEC_SP)
+OPFUNC(DEC_BC) LD2dx(BC) "dec " DX NL CLK1(6,1) dx2ST(BC) OPEND(DEC_BC) // (6+Tw)
+OPFUNC(DEC_DE) LD2dx(DE) "dec " DX NL CLK1(6,1) dx2ST(DE) OPEND(DEC_DE)
+OPFUNC(DEC_HL) LD2dx(HL) "dec " DX NL CLK1(6,1) dx2ST(HL) OPEND(DEC_HL)
+OPFUNC(DEC_SP) LD2dx(SP) "dec " DX NL CLK1(6,1) dx2ST(SP) OPEND(DEC_SP)
 
 OPFUNC(EX_AF_AF) AF2dx SWAPdx(ALTAF) NL dx2AF CLK1(4,1) OPEND(EX_AF_AF) // (4+Tw)
 OPFUNC(EX_DE_HL) LD2dx(DE) LD2bx(HL) CLK1(4,1) dx2ST(HL) bx2ST(DE) OPEND(EX_DE_HL)
@@ -452,7 +465,7 @@ OPFUNC(INC_D) LD2dl(D) ah2INCdl dl2ST(D) CLK1(4,1) OPEND(INC_D)
 OPFUNC(INC_E) LD2dl(E) ah2INCdl dl2ST(E) CLK1(4,1) OPEND(INC_E)
 OPFUNC(INC_H) LD2dl(H) ah2INCdl dl2ST(H) CLK1(4,1) OPEND(INC_H)
 OPFUNC(INC_L) LD2dl(L) ah2INCdl dl2ST(L) CLK1(4,1) OPEND(INC_L)
-OPFUNC(INC_p) LD2cx(HL) "push " ECX NL cxREAD2dl ah2INCdl "pop " ECX NL dl2WRITEcx CLK1(11,1) OPEND(INC_p) // (4+Tw,4,3)
+OPFUNC(INC_p) LD2cx(HL) "push " CX NL cxREAD2dl ah2INCdl "pop " CX NL dl2WRITEcx CLK1(11,1) OPEND(INC_p) // (4+Tw,4,3)
 OPFUNC(INC_A) LD2dl(A) ah2INCdl dl2ST(A) CLK1(4,1) OPEND(INC_A)
 
 OPFUNC(DEC_B) LD2dl(B) ah2DECdl dl2ST(B) CLK1(4,1) OPEND(DEC_B) // (4+Tw)
@@ -461,7 +474,7 @@ OPFUNC(DEC_D) LD2dl(D) ah2DECdl dl2ST(D) CLK1(4,1) OPEND(DEC_D)
 OPFUNC(DEC_E) LD2dl(E) ah2DECdl dl2ST(E) CLK1(4,1) OPEND(DEC_E)
 OPFUNC(DEC_H) LD2dl(H) ah2DECdl dl2ST(H) CLK1(4,1) OPEND(DEC_H)
 OPFUNC(DEC_L) LD2dl(L) ah2DECdl dl2ST(L) CLK1(4,1) OPEND(DEC_L)
-OPFUNC(DEC_p) LD2cx(HL) "push " ECX NL cxREAD2dl ah2DECdl "pop " ECX NL dl2WRITEcx CLK1(11,1) OPEND(DEC_p) // (4+Tw,4,3)
+OPFUNC(DEC_p) LD2cx(HL) "push " CX NL cxREAD2dl ah2DECdl "pop " CX NL dl2WRITEcx CLK1(11,1) OPEND(DEC_p) // (4+Tw,4,3)
 OPFUNC(DEC_A) LD2dl(A) ah2DECdl dl2ST(A) CLK1(4,1) OPEND(DEC_A)
 
 OPFUNC(LD_BC_NN) FETCH2dx(LD_BC_NN) dx2ST(BC) CLK1(10,1) OPEND(LD_BC_NN) // (4+Tw,3,3)
@@ -586,10 +599,10 @@ LC "z80_opcode:" NL
 	".long " OP "NOP," OP "NOP," OP "JP_Z,"  OP "NOP," OP "NOP," OP "NOP," OP "ADC_A_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "JP_NC," OP "NOP," OP "NOP," OP "NOP," OP   "SUB_N," OP "NOP" NL
 	".long " OP "NOP," OP "EXX," OP "JP_C,"  OP "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP  "NOP," OP "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP  "NOP," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP  "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "OR_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP  "NOP," OP "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "JP_PO," OP "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "JP_PE," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "JP_P,"  OP "NOP," OP "NOP," OP "NOP," OP    "OR_N," OP "NOP" NL
+	".long " OP "NOP," OP "NOP," OP "JP_M,"  OP "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
 
 	".size " LC "z80_opcode" ",.-" LC "z80_opcode" NL
 );
@@ -608,42 +621,42 @@ GFNSTART(exec)
 
 
 	"mov 24+0(%esp)," CPU NL
-	"mov " PC "," ECX NL
-	"mov " ECX "," EAPC NL
-	"shr $13 -2," ECX NL
-	"and $7 << 2," ECX NL // 7 = (1 << 16 -13) -1
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," ECX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+	"mov " PC "," CX NL
+	"mov " CX "," EAPC NL
+	"shr $13 -2," CX NL
+	"and $7 << 2," CX NL // 7 = (1 << 16 -13) -1
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," CX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
 	"and $0x1FFF," EAPC NL // 0x1FFF = (1 << 13) -1
 	"add " ECX "," EAPC NL
-	"mov " FA "," EAX NL
+	"mov " FA "," AX NL
 
 	"dec " EAPC NL
 	"xor " CLK "," CLK LF
 LC "z80_exec_loop:"
 	FETCH2dl(z80_exec)
-	"call *" LC "z80_opcode(," EDX ",4)" NL
+	"call *" LC "z80_opcode(," DX ",4)" NL
 
 	"cmp 24+4(%esp)," CLK NL
 	"jc " LC "z80_exec_loop" NL
 	F2ah
-	"mov " EAX "," FA NL
+	"mov " AX "," FA NL
 	"inc " EAPC NL
-	"mov " PC "," EAX NL // (*2)
-	"and $7 << 13," EAX NL // 7 = (1 << 16 -13) -1
-	"add " EAX "," EAPC NL
-	"shr $13 -2," EAX NL
-	"sub " M "raw_or_rwfn + " M "mem(" CPU "," EAX ",2)," EAPC NL // 2 = 1 << log2of(memctl_s) -2
+	"mov " PC "," AX NL // (*2)
+	"and $7 << 13," AX NL // 7 = (1 << 16 -13) -1
+	"add " AX "," EAPC NL
+	"shr $13 -2," AX NL
+	"sub " M "raw_or_rwfn + " M "mem(" CPU "," AX ",2)," EAPC NL // 2 = 1 << log2of(memctl_s) -2
 	"mov " EAPC "," PC NL
-	"mov " CLK "," EAX NL
+	"mov " CLK "," AX NL
 	
 	"pop " EAPC NL
 	".cfi_def_cfa esp,20" NL
-	"pop " EBX NL
+	"pop " BX NL
 	".cfi_def_cfa_offset 16" NL
 	"pop " CLK NL
 	".cfi_restore " CLK NL // ebp
 	".cfi_def_cfa_offset 12" NL
-	"pop " ECX NL
+	"pop " CX NL
 	".cfi_def_cfa_offset 8" NL
 	"pop " CPU NL
 	".cfi_def_cfa_offset 4" NL
