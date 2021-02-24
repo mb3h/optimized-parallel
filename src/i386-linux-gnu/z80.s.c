@@ -651,12 +651,12 @@ LC "z80_exec_loop:"
 	
 	"pop " EAPC NL
 	".cfi_def_cfa esp,20" NL
-	"pop " BX NL
+	"pop " EBX NL
 	".cfi_def_cfa_offset 16" NL
 	"pop " CLK NL
 	".cfi_restore " CLK NL // ebp
 	".cfi_def_cfa_offset 12" NL
-	"pop " CX NL
+	"pop " ECX NL
 	".cfi_def_cfa_offset 8" NL
 	"pop " CPU NL
 	".cfi_def_cfa_offset 4" NL

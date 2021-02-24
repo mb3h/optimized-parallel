@@ -601,6 +601,35 @@ u16 t;
 	return clocks;
 }
 
+// 3X2
+static unsigned cond_jp (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u16 nn;
+	nn = fetch_to_nn (m_, &clocks);
+	switch (3 & p[0] >> 4) {
+	case 0:
+		if (! ((ZF & m_->r.f) == ZF * (1 & p[0] >> 3)))
+			return clocks;
+		break;
+	case 1:
+		if (! ((CF & m_->r.f) == CF * (1 & p[0] >> 3)))
+			return clocks;
+		break;
+	case 2:
+		if (! ((VF & m_->r.f) == VF * (1 & p[0] >> 3)))
+			return clocks;
+		break;
+	case 3:
+		if (! ((SF & m_->r.f) == SF * (1 & p[0] >> 3)))
+			return clocks;
+		break;
+	}
+	m_->pc = (u16)(nn -1);
+	return clocks;
+}
 // 3X3
 static unsigned ex_de_hl (z80_s *m_, const u8 *p)
 {
@@ -722,14 +751,14 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r 
 	,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r 
 
-	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  , add_n , NULL  
-	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  , adc_n , NULL  
-	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  , sub_n , NULL  
-	, NULL  , exx   , NULL  , NULL    , NULL  , NULL  , sbc_n , NULL  
-	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  , and_n , NULL  
-	, NULL  , NULL  , NULL  , ex_de_hl, NULL  , NULL  , xor_n , NULL  
-	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  ,  or_n , NULL  
-	, NULL  , NULL  , NULL  , NULL    , NULL  , NULL  ,  cp_n , NULL  
+	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , add_n , NULL  
+	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , adc_n , NULL  
+	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , sub_n , NULL  
+	, NULL  , exx   , cond_jp , NULL    , NULL  , NULL  , sbc_n , NULL  
+	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , and_n , NULL  
+	, NULL  , NULL  , cond_jp , ex_de_hl, NULL  , NULL  , xor_n , NULL  
+	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  ,  or_n , NULL  
+	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  ,  cp_n , NULL  
 };
 
 unsigned __attribute__((stdcall)) z80_exec (struct z80 *this_, unsigned min_clocks)
