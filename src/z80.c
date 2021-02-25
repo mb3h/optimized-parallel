@@ -600,6 +600,16 @@ u16 t;
 	swap(m_->rr.alt_bc, m_->rr.bc, t);
 	return clocks;
 }
+static unsigned jp_hl (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u16 nn;
+	nn = m_->rr.hl;
+	m_->pc = (u16)(nn -1);
+	return clocks;
+}
 
 // 3X2
 static unsigned cond_jp (z80_s *m_, const u8 *p)
@@ -756,7 +766,7 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , sub_n , NULL  
 	, NULL  , exx   , cond_jp , NULL    , NULL  , NULL  , sbc_n , NULL  
 	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , and_n , NULL  
-	, NULL  , NULL  , cond_jp , ex_de_hl, NULL  , NULL  , xor_n , NULL  
+	, NULL  , jp_hl , cond_jp , ex_de_hl, NULL  , NULL  , xor_n , NULL  
 	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  ,  or_n , NULL  
 	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  ,  cp_n , NULL  
 };

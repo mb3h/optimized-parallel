@@ -409,6 +409,7 @@ OPFUNC(JP_PO) CLK1(10,3) MIFPO(JP_PO) FETCH2dx(JP_PO) LD2EAPC(DX) MELSE0(JP_PO) 
 OPFUNC(JP_PE) CLK1(10,3) MIFPE(JP_PE) FETCH2dx(JP_PE) LD2EAPC(DX) MELSE0(JP_PE) "add $2," EAPC NL OPEND(JP_PE)
 OPFUNC(JP_P)  CLK1(10,3) MIFP (JP_P)  FETCH2dx(JP_P)  LD2EAPC(DX) MELSE0(JP_P)  "add $2," EAPC NL OPEND(JP_P) 
 OPFUNC(JP_M)  CLK1(10,3) MIFM (JP_M)  FETCH2dx(JP_M)  LD2EAPC(DX) MELSE0(JP_M)  "add $2," EAPC NL OPEND(JP_M) 
+OPFUNC(JP_HL) LD2dx(HL) CLK1(4,1) LD2EAPC(DX) OPEND(JP_HL) // (4+Tw)
 
 OPFUNC(DJNZ)
 	"mov " B ",%dl" NL
@@ -600,7 +601,7 @@ LC "z80_opcode:" NL
 	".long " OP "NOP," OP "NOP," OP "JP_NC," OP "NOP," OP "NOP," OP "NOP," OP   "SUB_N," OP "NOP" NL
 	".long " OP "NOP," OP "EXX," OP "JP_C,"  OP "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "JP_PO," OP "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "JP_PE," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
+	".long " OP "NOP," OP "JP_HL," OP "JP_PE," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "JP_P,"  OP "NOP," OP "NOP," OP "NOP," OP    "OR_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "JP_M,"  OP "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
 

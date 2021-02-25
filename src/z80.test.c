@@ -162,6 +162,10 @@ u16 nn;
 				if (dst)
 					strcpy (dst, "EXX");
 			}
+			else if (5 == y) {
+				if (dst)
+					sprintf (dst, "%-4s %s", "JP", "(HL)");
+			}
 			break;
 		case 2:
 			nn = load_le16 (++src);
