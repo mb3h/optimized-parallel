@@ -166,6 +166,10 @@ u16 nn;
 				if (dst)
 					sprintf (dst, "%-4s %s", "JP", "(HL)");
 			}
+			else if (7 == y) {
+				if (dst)
+					sprintf (dst, "%-4s %s,%s", "LD", r16[3], r16[2]);
+			}
 			break;
 		case 2:
 			nn = load_le16 (++src);

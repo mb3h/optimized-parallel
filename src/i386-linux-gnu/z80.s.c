@@ -483,6 +483,8 @@ OPFUNC(LD_DE_NN) FETCH2dx(LD_DE_NN) dx2ST(DE) CLK1(10,1) OPEND(LD_DE_NN)
 OPFUNC(LD_HL_NN) FETCH2dx(LD_HL_NN) dx2ST(HL) CLK1(10,1) OPEND(LD_HL_NN)
 OPFUNC(LD_SP_NN) FETCH2dx(LD_SP_NN) dx2ST(SP) CLK1(10,1) OPEND(LD_SP_NN)
 
+OPFUNC(LD_SP_HL) LD2dx(HL) CLK1(6,1) dx2ST(SP) OPEND(LD_SP_HL) // (6+Tw)
+
 OPFUNC(LD_C_B) LD2dl(B) dl2ST(C) CLK1(4,1) OPEND(LD_C_B) // (4+Tw)
 OPFUNC(LD_D_B) LD2dl(B) dl2ST(D) CLK1(4,1) OPEND(LD_D_B)
 OPFUNC(LD_E_B) LD2dl(B) dl2ST(E) CLK1(4,1) OPEND(LD_E_B)
@@ -603,7 +605,7 @@ LC "z80_opcode:" NL
 	".long " OP "NOP," OP "NOP," OP "JP_PO," OP "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
 	".long " OP "NOP," OP "JP_HL," OP "JP_PE," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "JP_P,"  OP "NOP," OP "NOP," OP "NOP," OP    "OR_N," OP "NOP" NL
-	".long " OP "NOP," OP "NOP," OP "JP_M,"  OP "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
+	".long " OP "NOP," OP "LD_SP_HL," OP "JP_M,"  OP "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
 
 	".size " LC "z80_opcode" ",.-" LC "z80_opcode" NL
 );

@@ -186,6 +186,7 @@ BC=0103.HL=67FF --------  =>  --------   7  C=02                0B       DEC  BC
    HL=A0B9.A=45 --------  =>  1--1--11   8  .                   BE       CP   (HL)
            A=45 --------  =>  -1----1-   5  .                   BF       CP   A
         HL=AF82 --------  =>  --------   5  PC=AF82             E9000000 JP   (HL)
+        HL=89AB --------  =>  --------   7  SP=89AB             F9       LD   SP,HL
               . -1------  =>  --------  11  .                   C281B0   JP   NZ,0B081h
               . -1------  =>  --------  11  PC=B081             CA81B0   JP   Z,0B081h
               . -------1  =>  --------  11  .                   D282AF   JP   NC,0AF82h
@@ -196,8 +197,8 @@ BC=0103.HL=67FF --------  =>  --------   7  C=02                0B       DEC  BC
               . 1-------  =>  --------  11  PC=AE02             FA02AE   JP   M,0AE02h
 DE=6789.HL=ABCD --------  =>  --------   5  DE=ABCD.HL=6789     EB       EX   DE,HL
            A=45 --------  =>  -1-1---1   8  A=00                C6BB     ADD  A,0BBh
-           A=45 -------1  =>  -1-1----   8  A=00                CEBA     ADC  A,0BAh
 #     (INITIAL) SZ-H-PNC      SZ-H-PNC CLK  (RESULT)            CODE     (disasm)
+           A=45 -------1  =>  -1-1----   8  A=00                CEBA     ADC  A,0BAh
            A=45 --------  =>  -1----1-   8  A=00                D645     SUB  45h
            A=45 -------1  =>  -1----10   8  A=00                DE44     SBC  A,44h
            A=45 --------  =>  ---1-1--   8  A=05                E6A7     AND  0A7h

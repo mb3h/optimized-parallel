@@ -610,6 +610,15 @@ u16 nn;
 	m_->pc = (u16)(nn -1);
 	return clocks;
 }
+static unsigned ld_sp_hl (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+	m_->rr.sp = m_->rr.hl;
+	clocks += 2;
+	return clocks;
+}
 
 // 3X2
 static unsigned cond_jp (z80_s *m_, const u8 *p)
@@ -761,14 +770,14 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r 
 	,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r 
 
-	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , add_n , NULL  
-	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , adc_n , NULL  
-	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , sub_n , NULL  
-	, NULL  , exx   , cond_jp , NULL    , NULL  , NULL  , sbc_n , NULL  
-	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  , and_n , NULL  
-	, NULL  , jp_hl , cond_jp , ex_de_hl, NULL  , NULL  , xor_n , NULL  
-	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  ,  or_n , NULL  
-	, NULL  , NULL  , cond_jp , NULL    , NULL  , NULL  ,  cp_n , NULL  
+	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , add_n , NULL  
+	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , adc_n , NULL  
+	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , sub_n , NULL  
+	, NULL  , exx     , cond_jp , NULL    , NULL  , NULL  , sbc_n , NULL  
+	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , and_n , NULL  
+	, NULL  , jp_hl   , cond_jp , ex_de_hl, NULL  , NULL  , xor_n , NULL  
+	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  ,  or_n , NULL  
+	, NULL  , ld_sp_hl, cond_jp , NULL    , NULL  , NULL  ,  cp_n , NULL  
 };
 
 unsigned __attribute__((stdcall)) z80_exec (struct z80 *this_, unsigned min_clocks)
