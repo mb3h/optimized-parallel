@@ -650,6 +650,16 @@ u16 nn;
 	return clocks;
 }
 // 3X3
+static unsigned jp (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u16 nn;
+	nn = fetch_to_nn (m_, &clocks);
+	m_->pc = (u16)(nn -1);
+	return clocks;
+}
 static unsigned ex_de_hl (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -770,7 +780,7 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r 
 	,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r 
 
-	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , add_n , NULL  
+	, NULL  , NULL    , cond_jp , jp      , NULL  , NULL  , add_n , NULL  
 	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , adc_n , NULL  
 	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , sub_n , NULL  
 	, NULL  , exx     , cond_jp , NULL    , NULL  , NULL  , sbc_n , NULL  

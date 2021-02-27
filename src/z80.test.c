@@ -178,7 +178,13 @@ u16 nn;
 				sprintf (dst, "%-4s %s,%s%04Xh", "JP", cond[y], (0x9FFF < nn) ? "0" : "", nn);
 			break;
 		case 3:
-			if (5 == y) {
+			if (0 == y) {
+				nn = load_le16 (++src);
+				++src;
+				if (dst)
+					sprintf (dst, "%-4s %s%04Xh", "JP", (0x9FFF < nn) ? "0" : "", nn);
+			}
+			else if (5 == y) {
 				if (dst)
 					sprintf (dst, "%-4s %s,%s", "EX", r16[1], r16[2]);
 			}
