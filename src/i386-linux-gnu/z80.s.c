@@ -394,6 +394,8 @@ LCEND(dx2WRITEcx)
 #define  MIFP(label) "test $" SF ",%ah" NL "jnz " LC #label "_unmatch" NL
 #define  MIFM(label) "test $" SF ",%ah" NL "jz  " LC #label "_unmatch" NL
 
+OPFUNC(SCF) al2ST(UND_F) "or $" CF ",%ah" NL "and $(0xff - (" NF "+" HF ")),%ah" NL CLK1(4,1) OPEND(SCF)
+
 OPFUNC(JR)                 FETCH2dl2sdx CLK1(12,3) sdx2JR                                        OPEND(JR)    // (4+Tw,3,5)
 OPFUNC(JR_NZ) MIFNZ(JR_NZ) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NZ) CLK1(7,2) "inc " EAPC NL OPEND(JR_NZ) // (4+Tw,3[,5])
 OPFUNC(JR_Z)  MIFZ (JR_Z)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_Z)  CLK1(7,2) "inc " EAPC NL OPEND(JR_Z) 
