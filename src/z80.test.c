@@ -52,6 +52,9 @@ static const char *regop[] = {
 static const char *regop8[] = {
 	"A,", "A,", "", "A,", "", "", "", ""
 };
+static const char *op0X7[] = {
+	"RLCA", "RRCA", "RLA", "RRA", "DAA", "CPL", "SCF", "CCF"
+};
 BUG(src_ && (NULL == dst || 4 +1 +9 +1 +9 < cb)) // 9 = len('[IX-0FFh]')
 const u8 *src, *src0;
 	src = src0 = (const u8 *)src_;
@@ -68,21 +71,25 @@ u16 nn;
 		case 0:
 			switch (y) {
 			case 0:
-				sprintf (dst, "%-4s", "NOP");
+				if (dst)
+					sprintf (dst, "%-4s", "NOP");
 				break;
 			case 1:
-				sprintf (dst, "%-4s %s,%s'", "EX", r16b[3], r16b[3]);
+				if (dst)
+					sprintf (dst, "%-4s %s,%s'", "EX", r16b[3], r16b[3]);
 				break;
 			case 2:
 			case 3:
 				n = *++src;
 				nn = (u16)(pc +2 + (s8)n);
-				sprintf (dst, "%-4s %s%04Xh", (2 == y) ? "DJNZ" : "JR", (0x9FFF < nn) ? "0" : "", nn);
+				if (dst)
+					sprintf (dst, "%-4s %s%04Xh", (2 == y) ? "DJNZ" : "JR", (0x9FFF < nn) ? "0" : "", nn);
 				break;
 			default:
 				n = *++src;
 				nn = (u16)(pc +2 + (s8)n);
-				sprintf (dst, "%-4s %s,%s%04Xh", "JR", cond[y -4], (0x9FFF < nn) ? "0" : "", nn);
+				if (dst)
+					sprintf (dst, "%-4s %s,%s%04Xh", "JR", cond[y -4], (0x9FFF < nn) ? "0" : "", nn);
 				break;
 			}
 			break;
@@ -136,9 +143,12 @@ u16 nn;
 			break;
 		case 6:
 			n = *++src;
-			sprintf (dst, "%-4s %s,%s%02Xh", "LD", r8[y], (0x9F < n) ? "0" : "", n);
+			if (dst)
+				sprintf (dst, "%-4s %s,%s%02Xh", "LD", r8[y], (0x9F < n) ? "0" : "", n);
 			break;
 		case 7:
+			if (dst)
+				sprintf (dst, "%-4s", op0X7[y]);
 			break;
 		}
 		break;
