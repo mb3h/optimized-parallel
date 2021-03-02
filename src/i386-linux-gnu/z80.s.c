@@ -395,6 +395,7 @@ LCEND(dx2WRITEcx)
 #define  MIFM(label) "test $" SF ",%ah" NL "jz  " LC #label "_unmatch" NL
 
 OPFUNC(SCF) al2ST(UND_F) "or $" CF ",%ah" NL "and $(0xff - (" NF "+" HF ")),%ah" NL CLK1(4,1) OPEND(SCF)
+OPFUNC(CCF) al2ST(UND_F) "mov %ah,%dl" NL "and $(0xff - (" NF "+" HF ")),%ah" NL "and $" CF ",%dl" NL "xor $" CF ",%ah" NL "shl $4,%dl" NL "or %dl,%ah" NL CLK1(4,1) OPEND(SCF)
 
 OPFUNC(JR)                 FETCH2dl2sdx CLK1(12,3) sdx2JR                                        OPEND(JR)    // (4+Tw,3,5)
 OPFUNC(JR_NZ) MIFNZ(JR_NZ) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NZ) CLK1(7,2) "inc " EAPC NL OPEND(JR_NZ) // (4+Tw,3[,5])
@@ -581,7 +582,7 @@ LC "z80_opcode:" NL
 	".long " OP    "JR_NZ," OP  "LD_HL_NN," OP "LD_pNN_HL," OP "INC_HL," OP "INC_H," OP "DEC_H," OP "LD_H_N," OP "NOP" NL
 	".long " OP    "JR_Z,"  OP "ADD_HL_HL," OP "LD_HL_pNN," OP "DEC_HL," OP "INC_L," OP "DEC_L," OP "LD_L_N," OP "NOP" NL
 	".long " OP    "JR_NC," OP  "LD_SP_NN," OP "LD_pNN_A,"  OP "INC_SP," OP "INC_p," OP "DEC_p," OP "LD_p_N," OP "SCF" NL
-	".long " OP    "JR_C,"  OP "ADD_HL_SP," OP "LD_A_pNN,"  OP "DEC_SP," OP "INC_A," OP "DEC_A," OP "LD_A_N," OP "NOP" NL
+	".long " OP    "JR_C,"  OP "ADD_HL_SP," OP "LD_A_pNN,"  OP "DEC_SP," OP "INC_A," OP "DEC_A," OP "LD_A_N," OP "CCF" NL
 
 	".long " OP    "NOP," OP "LD_B_C," OP "LD_B_D," OP "LD_B_E," OP "LD_B_H," OP "LD_B_L," OP "LD_B_p," OP "LD_B_A" NL
 	".long " OP "LD_C_B," OP    "NOP," OP "LD_C_D," OP "LD_C_E," OP "LD_C_H," OP "LD_C_L," OP "LD_C_p," OP "LD_C_A" NL
