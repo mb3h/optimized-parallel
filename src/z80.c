@@ -481,6 +481,17 @@ u8 n;
 }
 
 // 0X7
+static unsigned cpl (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+	m_->r.a ^= 0xff;
+	m_->r.f &= ~(HF|NF|R1F|R2F);
+	m_->r.f |= (R1F|R2F) & m_->r.a;
+	m_->r.f |= HF|NF;
+	return clocks;
+}
 static unsigned scf (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -781,7 +792,7 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	, djnz    , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
 	, jr      , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
 	, cond_jr , ld_rr_nn , ld_pnn_hl, inc_rr, inc_r , dec_r , ld_r_n, NULL  
-	, cond_jr , add_hl_rr, ld_hl_pnn, dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr , add_hl_rr, ld_hl_pnn, dec_rr, inc_r , dec_r , ld_r_n, cpl  
 	, cond_jr , ld_rr_nn , ld_pnn_a , inc_rr, inc_r , dec_r , ld_r_n, scf  
 	, cond_jr , add_hl_rr, ld_a_pnn , dec_rr, inc_r , dec_r , ld_r_n, ccf  
 
