@@ -394,9 +394,41 @@ LCEND(dx2WRITEcx)
 #define  MIFP(label) "test $" SF ",%ah" NL "jnz " LC #label "_unmatch" NL
 #define  MIFM(label) "test $" SF ",%ah" NL "jz  " LC #label "_unmatch" NL
 
+OPFUNC(DAA)
+	"mov %ah,%cl" NL
+	"and $" NF ",%cl" NL
+	"jnz " LC "DAA" "_after_sub" NL
+//LC "DAA" "_after_add:" NL
+	ah2fSZHNC
+	"daa" NL
+	"jmp " LC "DAA" "_NF_recovery" LF
+LC "DAA" "_after_sub:" NL
+	ah2fSZHNC
+	"das" LF
+LC "DAA" "_NF_recovery:" NL
+	al2ST(UND_F)
+	SZHNCf2ah
+	"and $(0xff - " NF "),%ah" NL
+	"or %cl,%ah" NL
+	CLK1(4,1)
+OPEND(DAA)
 OPFUNC(CPL) "not " A NL al2ST(UND_F) "or $(" HF "+" NF "),%ah" NL CLK1(4,1) OPEND(CPL)
-OPFUNC(SCF) al2ST(UND_F) "or $" CF ",%ah" NL "and $(0xff - (" NF "+" HF ")),%ah" NL CLK1(4,1) OPEND(SCF)
-OPFUNC(CCF) al2ST(UND_F) "mov %ah,%dl" NL "and $(0xff - (" NF "+" HF ")),%ah" NL "and $" CF ",%dl" NL "xor $" CF ",%ah" NL "shl $4,%dl" NL "or %dl,%ah" NL CLK1(4,1) OPEND(SCF)
+OPFUNC(SCF)
+	al2ST(UND_F)
+	"or $" CF ",%ah" NL
+	"and $(0xff - (" NF "+" HF ")),%ah" NL
+	CLK1(4,1)
+OPEND(SCF)
+OPFUNC(CCF)
+	al2ST(UND_F)
+	"mov %ah,%dl" NL
+	"and $(0xff - (" NF "+" HF ")),%ah" NL
+	"and $" CF ",%dl" NL
+	"xor $" CF ",%ah" NL
+	"shl $4,%dl" NL
+	"or %dl,%ah" NL
+	CLK1(4,1)
+OPEND(SCF)
 
 OPFUNC(JR)                 FETCH2dl2sdx CLK1(12,3) sdx2JR                                        OPEND(JR)    // (4+Tw,3,5)
 OPFUNC(JR_NZ) MIFNZ(JR_NZ) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NZ) CLK1(7,2) "inc " EAPC NL OPEND(JR_NZ) // (4+Tw,3[,5])
@@ -580,7 +612,7 @@ LC "z80_opcode:" NL
 	".long " OP "EX_AF_AF," OP "ADD_HL_BC," OP "LD_A_BC,"   OP "DEC_BC," OP "INC_C," OP "DEC_C," OP "LD_C_N," OP "NOP" NL
 	".long " OP    "DJNZ,"  OP  "LD_DE_NN," OP "LD_DE_A,"   OP "INC_DE," OP "INC_D," OP "DEC_D," OP "LD_D_N," OP "NOP" NL
 	".long " OP    "JR,"    OP "ADD_HL_DE," OP "LD_A_DE,"   OP "DEC_DE," OP "INC_E," OP "DEC_E," OP "LD_E_N," OP "NOP" NL
-	".long " OP    "JR_NZ," OP  "LD_HL_NN," OP "LD_pNN_HL," OP "INC_HL," OP "INC_H," OP "DEC_H," OP "LD_H_N," OP "NOP" NL
+	".long " OP    "JR_NZ," OP  "LD_HL_NN," OP "LD_pNN_HL," OP "INC_HL," OP "INC_H," OP "DEC_H," OP "LD_H_N," OP "DAA" NL
 	".long " OP    "JR_Z,"  OP "ADD_HL_HL," OP "LD_HL_pNN," OP "DEC_HL," OP "INC_L," OP "DEC_L," OP "LD_L_N," OP "CPL" NL
 	".long " OP    "JR_NC," OP  "LD_SP_NN," OP "LD_pNN_A,"  OP "INC_SP," OP "INC_p," OP "DEC_p," OP "LD_p_N," OP "SCF" NL
 	".long " OP    "JR_C,"  OP "ADD_HL_SP," OP "LD_A_pNN,"  OP "DEC_SP," OP "INC_A," OP "DEC_A," OP "LD_A_N," OP "CCF" NL
