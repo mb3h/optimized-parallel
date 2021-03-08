@@ -481,6 +481,36 @@ u8 n;
 }
 
 // 0X7
+static unsigned daa (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+	if (NF & m_->r.f) {
+		if (HF & m_->r.f && 5 < (15 & m_->r.a))
+			m_->r.a -= 6;
+		if (CF & m_->r.f && (HF & m_->r.f ? 4 : 5) < (15 & m_->r.a >> 4))
+			m_->r.a -= 0x60;
+	}
+	else {
+		if (HF & m_->r.f && (15 & m_->r.a) < 4)
+			m_->r.a += 6;
+		else if (HF & ~m_->r.f && 9 < (15 & m_->r.a)) {
+			m_->r.a += 6, m_->r.f |= HF;
+			m_->r.f |= (15 & m_->r.a >> 4) ? 0 : CF;
+		}
+		if (CF & m_->r.f && (15 & m_->r.a >> 4) < (HF & m_->r.f ? 4 : 3))
+			m_->r.a += 0x60;
+		if (CF & ~m_->r.f && 9 < (15 & m_->r.a >> 4))
+			m_->r.a += 0x60, m_->r.f |= CF;
+	}
+	m_->r.f &= ~(SF|ZF|PF|R1F|R2F);
+	m_->r.f |= (R1F|R2F) & m_->r.a;
+	m_->r.f |= (0x80 & m_->r.a) ? SF : 0;
+	m_->r.f |= (0x00 == m_->r.a) ? ZF : 0;
+	m_->r.f |= !(odd_even[15 & m_->r.a] ^ odd_even[15 & m_->r.a >> 4]) ? PF : 0;
+	return clocks;
+}
 static unsigned cpl (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -791,7 +821,7 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	, ex_af_af, add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
 	, djnz    , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
 	, jr      , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
-	, cond_jr , ld_rr_nn , ld_pnn_hl, inc_rr, inc_r , dec_r , ld_r_n, NULL  
+	, cond_jr , ld_rr_nn , ld_pnn_hl, inc_rr, inc_r , dec_r , ld_r_n, daa  
 	, cond_jr , add_hl_rr, ld_hl_pnn, dec_rr, inc_r , dec_r , ld_r_n, cpl  
 	, cond_jr , ld_rr_nn , ld_pnn_a , inc_rr, inc_r , dec_r , ld_r_n, scf  
 	, cond_jr , add_hl_rr, ld_a_pnn , dec_rr, inc_r , dec_r , ld_r_n, ccf  
