@@ -426,6 +426,7 @@ OPFUNC(CCF)
 OPEND(CCF)
 
 OPFUNC(RLCA) ah2fSZHNC "rol $1," A NL al2ST(UND_F) "and $(0xff - (" HF "+" NF ")),%ah" NL CLK1(4,1) OPEND(RLCA)
+OPFUNC(RRCA) ah2fSZHNC "ror $1," A NL al2ST(UND_F) "and $(0xff - (" HF "+" NF ")),%ah" NL CLK1(4,1) OPEND(RRCA)
 
 OPFUNC(JR)                 FETCH2dl2sdx CLK1(12,3) sdx2JR                                        OPEND(JR)    // (4+Tw,3,5)
 OPFUNC(JR_NZ) MIFNZ(JR_NZ) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NZ) CLK1(7,2) "inc " EAPC NL OPEND(JR_NZ) // (4+Tw,3[,5])
@@ -606,7 +607,7 @@ __asm__ (
 	".type " LC "z80_opcode" ",@object" LF
 LC "z80_opcode:" NL
 	".long " OP     "NOP,"  OP  "LD_BC_NN," OP "LD_BC_A,"   OP "INC_BC," OP "INC_B," OP "DEC_B," OP "LD_B_N," OP "RLCA" NL
-	".long " OP "EX_AF_AF," OP "ADD_HL_BC," OP "LD_A_BC,"   OP "DEC_BC," OP "INC_C," OP "DEC_C," OP "LD_C_N," OP "NOP" NL
+	".long " OP "EX_AF_AF," OP "ADD_HL_BC," OP "LD_A_BC,"   OP "DEC_BC," OP "INC_C," OP "DEC_C," OP "LD_C_N," OP "RRCA" NL
 	".long " OP    "DJNZ,"  OP  "LD_DE_NN," OP "LD_DE_A,"   OP "INC_DE," OP "INC_D," OP "DEC_D," OP "LD_D_N," OP "NOP" NL
 	".long " OP    "JR,"    OP "ADD_HL_DE," OP "LD_A_DE,"   OP "DEC_DE," OP "INC_E," OP "DEC_E," OP "LD_E_N," OP "NOP" NL
 	".long " OP    "JR_NZ," OP  "LD_HL_NN," OP "LD_pNN_HL," OP "INC_HL," OP "INC_H," OP "DEC_H," OP "LD_H_N," OP "DAA" NL
