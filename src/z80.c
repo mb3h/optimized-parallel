@@ -492,6 +492,17 @@ unsigned clocks;
 	m_->r.f |= (1 & m_->r.a) ? CF : 0;
 	return clocks;
 }
+static unsigned rrca (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+	m_->r.a = 0x7f & m_->r.a >> 1 | 0x80 & m_->r.a << 7;
+	m_->r.f &= ~(HF|NF|CF|R1F|R2F);
+	m_->r.f |= (R1F|R2F) & m_->r.a;
+	m_->r.f |= (0x80 & m_->r.a) ? CF : 0;
+	return clocks;
+}
 static unsigned daa (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -829,7 +840,7 @@ u8 n;
 
 static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	  nop     , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, rlca  
-	, ex_af_af, add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
+	, ex_af_af, add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, rrca  
 	, djnz    , ld_rr_nn , ld_rr_a  , inc_rr, inc_r , dec_r , ld_r_n, NULL  
 	, jr      , add_hl_rr, ld_a_rr  , dec_rr, inc_r , dec_r , ld_r_n, NULL  
 	, cond_jr , ld_rr_nn , ld_pnn_hl, inc_rr, inc_r , dec_r , ld_r_n, daa  
