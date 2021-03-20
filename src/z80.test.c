@@ -168,6 +168,10 @@ u16 nn;
 	case 3:
 		switch (z) {
 		case 1:
+			if (0 == (1 & y)) {
+				if (dst)
+					sprintf (dst, "%-4s %s", "POP", r16[y >> 1]);
+			}
 			if (3 == y) {
 				if (dst)
 					strcpy (dst, "EXX");
@@ -261,6 +265,7 @@ u8 mask;
 	}
 	return dst - begin;
 }
+#define SP_DEFAULT 0xA0F0
 static size_t changed_reg_tostr (z80_s *m_, const z80_s *old, const char *sep, char *dst, size_t cb)
 {
 BUG(m_ && sep && dst && 0 < cb)
@@ -271,7 +276,7 @@ const char *prefix;
 int changed;
 	// SP
 BUG(dst +4 +4 < end)
-	changed  = (old && old->rr.sp == m_->rr.sp || NULL == old && 0 == m_->rr.sp) ? 0 : 3;
+	changed  = (old && old->rr.sp == m_->rr.sp || NULL == old && SP_DEFAULT == m_->rr.sp) ? 0 : 3;
 	changed |= (old && (u16)(m_->rr.sp +8 - old->rr.sp) < 8) ? 4 : 0;
 	changed |= (old && (u16)(m_->rr.sp    - old->rr.sp) < 8) ? 8 : 0;
 	prefix = ('\0' == *begin) ? "" : sep;
@@ -404,15 +409,17 @@ u16 addr;
 		for (addr = 0x1000; p +1 < q; p += 2, ++addr)
 			mem5[addr] = tohex (p[0]) << 4 | tohex (p[1]);
 		p = q;
+		m_->rr.sp = SP_DEFAULT;
 		// TEST DATA [A000-A0FF] <- 00..FF
 		for (addr = 0x0000; addr < 0x0100; ++addr)
 			mem5[addr] = 255 - (u8)addr;
-		// BC/DE/HL/A
+		// BC/DE/HL/SP/A
 		while (p < tail) {
 			while (strchr (" \t", *p))
 				++p;
 			if (memchr ("\0" "#", *p, 2))
 				break;
+			// B/C/D/E/H/L/A
 			if ('=' == p[1]) {
 u8 n;
 				n = (u8)strtol (p +2, &q, 16);
@@ -427,6 +434,7 @@ u8 n;
 				}
 				p = q;
 			}
+			// BC/DE/HL/SP
 			else if ('=' == p[2]) {
 u16 nn;
 				nn = (u16)strtol (p +3, &q, 16);
@@ -440,6 +448,7 @@ u16 nn;
 					m_->rr.sp = nn;
 				p = q;
 			}
+			// BC'/DE'/HL'/AF'
 			else if ('=' == p[3]) {
 u16 nn;
 				nn = (u16)strtol (p +4, &q, 16);

@@ -164,6 +164,8 @@ M "mem:" NL
 	         PP
 	         LL */
 
+#define ADDn(dst, n) "add $" #n "," dst NL
+
 #define CLK1(clocks, cycles) \
 	"add $" #clocks " +" Tw ",%ebp" NL
 #define al2ST(dst) \
@@ -515,6 +517,8 @@ OPFUNC(DEC_L) LD2dl(L) ah2DECdl dl2ST(L) CLK1(4,1) OPEND(DEC_L)
 OPFUNC(DEC_p) LD2cx(HL) "push " CX NL cxREAD2dl ah2DECdl "pop " CX NL dl2WRITEcx CLK1(11,1) OPEND(DEC_p) // (4+Tw,4,3)
 OPFUNC(DEC_A) LD2dl(A) ah2DECdl dl2ST(A) CLK1(4,1) OPEND(DEC_A)
 
+OPFUNC(POP_BC) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2ST(BC) CLK1(10,3) OPEND(POP_BC) // (4+Tw,3,3)
+
 OPFUNC(LD_BC_NN) FETCH2dx(LD_BC_NN) dx2ST(BC) CLK1(10,1) OPEND(LD_BC_NN) // (4+Tw,3,3)
 OPFUNC(LD_DE_NN) FETCH2dx(LD_DE_NN) dx2ST(DE) CLK1(10,1) OPEND(LD_DE_NN)
 OPFUNC(LD_HL_NN) FETCH2dx(LD_HL_NN) dx2ST(HL) CLK1(10,1) OPEND(LD_HL_NN)
@@ -635,7 +639,7 @@ LC "z80_opcode:" NL
 	".long " OP    "OR_B," OP    "OR_C," OP    "OR_D," OP    "OR_E," OP    "OR_H," OP    "OR_L," OP    "OR_p," OP    "OR_A" NL
 	".long " OP    "CP_B," OP    "CP_C," OP    "CP_D," OP    "CP_E," OP    "CP_H," OP    "CP_L," OP    "CP_p," OP    "CP_A" NL
 
-	".long " OP "NOP," OP "NOP," OP "JP_NZ," OP "JP,"  OP "NOP," OP "NOP," OP "ADD_A_N," OP "NOP" NL
+	".long " OP "NOP," OP "POP_BC," OP "JP_NZ," OP "JP,"  OP "NOP," OP "NOP," OP "ADD_A_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "JP_Z,"  OP "NOP," OP "NOP," OP "NOP," OP "ADC_A_N," OP "NOP" NL
 	".long " OP "NOP," OP "NOP," OP "JP_NC," OP "NOP," OP "NOP," OP "NOP," OP   "SUB_N," OP "NOP" NL
 	".long " OP "NOP," OP "EXX," OP "JP_C,"  OP "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL

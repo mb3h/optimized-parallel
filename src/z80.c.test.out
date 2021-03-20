@@ -195,9 +195,10 @@ BC=0103.HL=67FF --------  =>  --------   7  C=02                0B       DEC  BC
            A=45 --------  =>  -1----1-   5  .                   BF       CP   A
         HL=AF82 --------  =>  --------   5  PC=AF82             E9000000 JP   (HL)
         HL=89AB --------  =>  --------   7  SP=89AB             F9       LD   SP,HL
+              . --------  =>  --------  11  SP=+2.BC=0E0F       C1       POP  BC
               . -1------  =>  --------  11  .                   C281B0   JP   NZ,0B081h
-              . -1------  =>  --------  11  PC=B081             CA81B0   JP   Z,0B081h
 #     (INITIAL) SZ-H-PNC      SZ-H-PNC CLK  (RESULT)            CODE     (disasm)
+              . -1------  =>  --------  11  PC=B081             CA81B0   JP   Z,0B081h
               . -------1  =>  --------  11  .                   D282AF   JP   NC,0AF82h
               . -------1  =>  --------  11  PC=AF82             DA82AF   JP   C,0AF82h
               . -----1--  =>  --------  11  .                   E201B2   JP   PO,0B201h
