@@ -68,7 +68,7 @@ u16 nn;
 	switch (x) {
 	case 0:
 		switch (z) {
-		case 0:
+		case 0: // 0X0
 			switch (y) {
 			case 0:
 				if (dst)
@@ -93,7 +93,7 @@ u16 nn;
 				break;
 			}
 			break;
-		case 1:
+		case 1: // 0X1
 			if (! (1 & y)) {
 				nn = load_le16 (++src);
 				++src;
@@ -105,7 +105,7 @@ u16 nn;
 					sprintf (dst, "%-4s %s,%s", "ADD", "HL", r16[y >> 1]);
 			}
 			break;
-		case 2:
+		case 2: // 0X2
 			if (! (4 & y)) {
 				if (! (1 & y)) {
 					if (dst)
@@ -129,24 +129,24 @@ u16 nn;
 				}
 			}
 			break;
-		case 3:
+		case 3: // 0X3
 			if (dst)
 				sprintf (dst, "%-4s %s", (1 & y) ? "DEC" : "INC", r16[y >> 1]);
 			break;
-		case 4:
+		case 4: // 0X4
 			if (dst)
 				sprintf (dst, "%-4s %s", "INC", r8[y]);
 			break;
-		case 5:
+		case 5: // 0X5
 			if (dst)
 				sprintf (dst, "%-4s %s", "DEC", r8[y]);
 			break;
-		case 6:
+		case 6: // 0X6
 			n = *++src;
 			if (dst)
 				sprintf (dst, "%-4s %s,%s%02Xh", "LD", r8[y], (0x9F < n) ? "0" : "", n);
 			break;
-		case 7:
+		case 7: // 0X7
 			if (dst)
 				sprintf (dst, "%-4s", op0X7[y]);
 			break;
@@ -167,10 +167,10 @@ u16 nn;
 		break;
 	case 3:
 		switch (z) {
-		case 1:
+		case 1: // 3X1
 			if (0 == (1 & y)) {
 				if (dst)
-					sprintf (dst, "%-4s %s", "POP", r16[y >> 1]);
+					sprintf (dst, "%-4s %s", "POP", r16b[y >> 1]);
 			}
 			if (3 == y) {
 				if (dst)
@@ -185,13 +185,13 @@ u16 nn;
 					sprintf (dst, "%-4s %s,%s", "LD", r16[3], r16[2]);
 			}
 			break;
-		case 2:
+		case 2: // 3X2
 			nn = load_le16 (++src);
 			++src;
 			if (dst)
 				sprintf (dst, "%-4s %s,%s%04Xh", "JP", cond[y], (0x9FFF < nn) ? "0" : "", nn);
 			break;
-		case 3:
+		case 3: // 3X3
 			if (0 == y) {
 				nn = load_le16 (++src);
 				++src;
@@ -203,15 +203,15 @@ u16 nn;
 					sprintf (dst, "%-4s %s,%s", "EX", r16[1], r16[2]);
 			}
 			break;
-		case 6:
+		case 6: // 3X6
 			n = *++src;
 			if (dst)
 				sprintf (dst, "%-4s %s%s%02Xh", regop[y], regop8[y], (0x9F < n) ? "0" : "", n);
 			break;
-		case 0:
-		case 4:
-		case 5:
-		case 7:
+		case 0: // 3X0
+		case 4: // 3X4
+		case 5: // 3X5
+		case 7: // 3X7
 			break;
 		}
 		break;
