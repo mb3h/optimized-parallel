@@ -172,6 +172,10 @@ u16 nn;
 				if (dst)
 					sprintf (dst, "%-4s %s", "POP", r16b[y >> 1]);
 			}
+			if (1 == y) {
+				if (dst)
+					strcpy (dst, "RET");
+			}
 			if (3 == y) {
 				if (dst)
 					strcpy (dst, "EXX");
