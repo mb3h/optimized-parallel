@@ -167,6 +167,10 @@ u16 nn;
 		break;
 	case 3:
 		switch (z) {
+		case 0: // 3X0
+			if (dst)
+				sprintf (dst, "%-4s %s", "RET", cond[y]);
+			break;
 		case 1: // 3X1
 			if (0 == (1 & y)) {
 				if (dst)
@@ -212,7 +216,6 @@ u16 nn;
 			if (dst)
 				sprintf (dst, "%-4s %s%s%02Xh", regop[y], regop8[y], (0x9F < n) ? "0" : "", n);
 			break;
-		case 0: // 3X0
 		case 4: // 3X4
 		case 5: // 3X5
 		case 7: // 3X7
