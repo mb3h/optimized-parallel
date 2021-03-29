@@ -464,6 +464,7 @@ OPFUNC(RET_NZ) MIFNZ(RET_NZ) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(D
 OPFUNC(RET_Z)  MIFZ (RET_Z)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_Z)  CLK1(5,3) OPEND(RET_Z)
 OPFUNC(RET_NC) MIFNC(RET_NC) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_NC) CLK1(5,3) OPEND(RET_NC)
 OPFUNC(RET_C)  MIFC (RET_C)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_C)  CLK1(5,3) OPEND(RET_C) 
+OPFUNC(RET_PO) MIFPO(RET_PO) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_PO) CLK1(5,3) OPEND(RET_PO)
 
 OPFUNC(ADD_HL_BC) LD2dx(HL) ah2ADDdx(B,C)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_BC) // (4+Tw,4,3)
 OPFUNC(ADD_HL_DE) LD2dx(HL) ah2ADDdx(D,E)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_DE)
@@ -652,7 +653,7 @@ LC "z80_opcode:" NL
 	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "NOP," OP "NOP," OP "ADC_A_N," OP "NOP" NL
 	".long " OP "RET_NC," OP   "POP_DE," OP "JP_NC," OP      "NOP," OP "NOP," OP "NOP," OP   "SUB_N," OP "NOP" NL
 	".long " OP "RET_C,"  OP      "EXX," OP "JP_C,"  OP      "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
-	".long " OP "NOP," OP   "POP_HL," OP "JP_PO," OP      "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
+	".long " OP "RET_PO," OP   "POP_HL," OP "JP_PO," OP      "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
 	".long " OP "NOP," OP    "JP_HL," OP "JP_PE," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
 	".long " OP "NOP," OP   "POP_AF," OP "JP_P,"  OP      "NOP," OP "NOP," OP "NOP," OP    "OR_N," OP "NOP" NL
 	".long " OP "NOP," OP "LD_SP_HL," OP "JP_M,"  OP      "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL

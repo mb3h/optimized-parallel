@@ -198,6 +198,7 @@ BC=0103.HL=67FF --------  =>  --------   7  C=02                0B       DEC  BC
         SP=A05E --------  =>  --------  12  SP=+2.PC=A0A1       D0       RET  NC
         SP=A05E -------1  =>  --------  12  SP=+2.PC=A0A1       D8       RET  C
 #     (INITIAL) SZ-H-PNC      SZ-H-PNC CLK  (RESULT)            CODE     (disasm)
+        SP=A05E --------  =>  --------  12  SP=+2.PC=A0A1       E0       RET  PO
               . --------  =>  --------  11  SP=+2.BC=0E0F       C1       POP  BC
               . --------  =>  --------  11  SP=+2.DE=0E0F       D1       POP  DE
               . --------  =>  --------  11  SP=+2.HL=0E0F       E1       POP  HL
