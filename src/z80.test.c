@@ -211,13 +211,18 @@ u16 nn;
 					sprintf (dst, "%-4s %s,%s", "EX", r16[1], r16[2]);
 			}
 			break;
+		case 5: // 3X5
+			if (0 == (1 & y)) {
+				if (dst)
+					sprintf (dst, "%-4s %s", "PUSH", r16b[y >> 1]);
+			}
+			break;
 		case 6: // 3X6
 			n = *++src;
 			if (dst)
 				sprintf (dst, "%-4s %s%s%02Xh", regop[y], regop8[y], (0x9F < n) ? "0" : "", n);
 			break;
 		case 4: // 3X4
-		case 5: // 3X5
 		case 7: // 3X7
 			break;
 		}
