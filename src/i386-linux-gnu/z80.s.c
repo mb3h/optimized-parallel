@@ -531,6 +531,7 @@ OPFUNC(DEC_p) LD2cx(HL) "push " CX NL cxREAD2dl ah2DECdl "pop " CX NL dl2WRITEcx
 OPFUNC(DEC_A) LD2dl(A) ah2DECdl dl2ST(A) CLK1(4,1) OPEND(DEC_A)
 
 OPFUNC(PUSH_BC) LD2dx(BC) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx CLK1(11,3) OPEND(PUSH_BC) // (5+Tw,3,3)
+OPFUNC(PUSH_DE) LD2dx(DE) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx CLK1(11,3) OPEND(PUSH_DE)
 
 OPFUNC(POP_BC) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2ST(BC) CLK1(10,3) OPEND(POP_BC) // (4+Tw,3,3)
 OPFUNC(POP_DE) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2ST(DE) CLK1(10,3) OPEND(POP_DE)
@@ -659,7 +660,7 @@ LC "z80_opcode:" NL
 
 	".long " OP "RET_NZ," OP   "POP_BC," OP "JP_NZ," OP       "JP," OP "NOP," OP "PUSH_BC," OP "ADD_A_N," OP "NOP" NL
 	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "NOP," OP "NOP," OP "ADC_A_N," OP "NOP" NL
-	".long " OP "RET_NC," OP   "POP_DE," OP "JP_NC," OP      "NOP," OP "NOP," OP "NOP," OP   "SUB_N," OP "NOP" NL
+	".long " OP "RET_NC," OP   "POP_DE," OP "JP_NC," OP      "NOP," OP "NOP," OP "PUSH_DE," OP   "SUB_N," OP "NOP" NL
 	".long " OP "RET_C,"  OP      "EXX," OP "JP_C,"  OP      "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
 	".long " OP "RET_PO," OP   "POP_HL," OP "JP_PO," OP      "NOP," OP "NOP," OP "NOP," OP   "AND_N," OP "NOP" NL
 	".long " OP "RET_PE," OP    "JP_HL," OP "JP_PE," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
