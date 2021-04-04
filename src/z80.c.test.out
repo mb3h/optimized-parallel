@@ -221,6 +221,7 @@ BC=0103.HL=67FF --------  =>  --------   7  C=02                0B       DEC  BC
 DE=6789.HL=ABCD --------  =>  --------   5  DE=ABCD.HL=6789     EB       EX   DE,HL
         BC=0E0F --------  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F C5       PUSH BC
         DE=0E0F --------  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F D5       PUSH DE
+        HL=0E0F --------  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F E5       PUSH HL
            A=45 --------  =>  -1-1---1   8  A=00                C6BB     ADD  A,0BBh
            A=45 -------1  =>  -1-1----   8  A=00                CEBA     ADC  A,0BAh
            A=45 --------  =>  -1----1-   8  A=00                D645     SUB  45h
@@ -229,4 +230,5 @@ DE=6789.HL=ABCD --------  =>  --------   5  DE=ABCD.HL=6789     EB       EX   DE
            A=45 --------  =>  1-1--1--   8  A=E2                EEA7     XOR  0A7h
            A=45 --------  =>  1-1--1--   8  A=E7                F6A7     OR   0A7h
            A=45 --------  =>  -1----1-   8  .                   FE45     CP   45h
+#     (INITIAL) SZ-H-PNC      SZ-H-PNC CLK  (RESULT)            CODE     (disasm)
 BC'=DCBA.DE'=9876.HL'=5432.BC=2345.DE=6789.HL=ABCD --------  =>  --------   5  BC'=2345.DE'=6789.HL'=ABCD.BC=DCBA.DE=9876.HL=5432 D9       EXX
