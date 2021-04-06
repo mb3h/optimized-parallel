@@ -103,6 +103,11 @@ M "alt_af:" LF
 M "reg_pc:" NL
 	".struct " M "reg_pc +2 +" sizeofPAD LF
 
+M "iff1:" NL
+	".struct " M "iff1 +1" LF
+M "iff2:" NL
+	".struct " M "iff2 +1 +" sizeofPAD LF
+
 M "mem:" NL
 	".struct " M "mem +(8 << " LS "log2of_memctl)" LF
 );
@@ -142,6 +147,8 @@ M "mem:" NL
 #define FA    M  "reg_fa(" CPU ")"
 #define SP    M  "reg_sp(" CPU ")"
 #define PC    M  "reg_pc(" CPU ")"
+#define IFF1  M    "iff1(" CPU ")"
+#define IFF2  M    "iff2(" CPU ")"
 #define ALTBC M  "alt_bc(" CPU ")"
 #define ALTDE M  "alt_de(" CPU ")"
 #define ALTHL M  "alt_hl(" CPU ")"
@@ -629,6 +636,13 @@ OPFUNC(LD_HL_pNN) FETCH2dx(LD_HL_pNN) dx2cx CLK1(16,5) cxREAD2dx dx2ST(HL) OPEND
 OPFUNC(LD_pNN_A) FETCH2dx(LD_pNN_A) dx2cx LD2dl(A) CLK1(13,4) dl2WRITEcx OPEND(LD_pNN_A) // (4+Tw,3,3,3)
 OPFUNC(LD_A_pNN) FETCH2dx(LD_A_pNN) dx2cx cxREAD2dl CLK1(13,4) dl2ST(A) OPEND(LD_A_pNN)
 
+OPFUNC(DI)
+	CLK1(4,1)
+	"xor %cl,%cl" NL
+	"mov %cl," IFF1 NL
+	"mov %cl," IFF2 NL
+OPEND(DI) // (4+Tw)
+
 __asm__ (
 	".section .rodata" NL
 	".type " LC "z80_opcode" ",@object" LF
@@ -666,7 +680,7 @@ LC "z80_opcode:" NL
 	".long " OP "RET_C,"  OP      "EXX," OP "JP_C,"  OP      "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
 	".long " OP "RET_PO," OP   "POP_HL," OP "JP_PO," OP      "NOP," OP "NOP," OP "PUSH_HL," OP   "AND_N," OP "NOP" NL
 	".long " OP "RET_PE," OP    "JP_HL," OP "JP_PE," OP "EX_DE_HL," OP "NOP," OP "NOP," OP   "XOR_N," OP "NOP" NL
-	".long " OP "RET_P,"  OP   "POP_AF," OP "JP_P,"  OP      "NOP," OP "NOP," OP "PUSH_AF," OP    "OR_N," OP "NOP" NL
+	".long " OP "RET_P,"  OP   "POP_AF," OP "JP_P,"  OP       "DI," OP "NOP," OP "PUSH_AF," OP    "OR_N," OP "NOP" NL
 	".long " OP "RET_M,"  OP "LD_SP_HL," OP "JP_M,"  OP      "NOP," OP "NOP," OP "NOP," OP    "CP_N," OP "NOP" NL
 
 	".size " LC "z80_opcode" ",.-" LC "z80_opcode" NL

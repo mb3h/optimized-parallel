@@ -210,11 +210,21 @@ u16 nn;
 				if (dst)
 					sprintf (dst, "%-4s %s,%s", "EX", r16[1], r16[2]);
 			}
+			else if (6 == y) {
+				if (dst)
+					strcpy (dst, "DI");
+			}
 			break;
 		case 5: // 3X5
 			if (0 == (1 & y)) {
 				if (dst)
 					sprintf (dst, "%-4s %s", "PUSH", r16b[y >> 1]);
+			}
+			else if (1 == y) {
+				nn = load_le16 (++src);
+				++src;
+				if (dst)
+					sprintf (dst, "%-4s %s%04Xh", "CALL", (0x9FFF < nn) ? "0" : "", nn);
 			}
 			break;
 		case 6: // 3X6
@@ -286,6 +296,20 @@ char *begin, *end;
 	*dst = '\0';
 const char *prefix;
 int changed;
+	// IFF1
+BUG(dst +6 +1 < end)
+	changed  = (old && (old->iff1.req | old->iff1.now) == (m_->iff1.req | m_->iff1.now) || NULL == old && 0 == (m_->iff1.req | m_->iff1.now)) ? 0 : 1;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (1 == changed)
+		sprintf (dst, "%s" "IFF1=" "%d", prefix, (m_->iff1.req | m_->iff1.now));
+	dst = strchr (dst, '\0');
+	// IFF2
+BUG(dst +6 +1 < end)
+	changed  = (old && old->iff2.now == m_->iff2.now || NULL == old && 0 == m_->iff2.now) ? 0 : 1;
+	prefix = ('\0' == *begin) ? "" : sep;
+	if (1 == changed)
+		sprintf (dst, "%s" "IFF2=" "%d", prefix, m_->iff2.now);
+	dst = strchr (dst, '\0');
 	// SP
 BUG(dst +4 +4 < end)
 	changed  = (old && old->rr.sp == m_->rr.sp || NULL == old && SP_DEFAULT == m_->rr.sp) ? 0 : 3;
@@ -473,6 +497,16 @@ u16 nn;
 				else if (0 == memcmp ("AF'", p, 3))
 					m_->rr.alt_af = nn;
 				p = q;
+			}
+			// IFF1/IFF2
+			else if ('=' == p[4]) {
+u8 n;
+				n = ('0' == p[5]) ? 0 : 1;
+				if (0 == memcmp ("IFF1'", p, 4))
+					m_->iff1.now = n;
+				else if (0 == memcmp ("IFF2'", p, 4))
+					m_->iff2.now = n;
+				p += 6;
 			}
 			else
 				break;

@@ -72,6 +72,19 @@ struct z80_ {
 	uint16_t pc32, pc;
 # endif
 #endif
+	struct {
+		uint8_t now :1;
+		uint8_t pad :6;
+		uint8_t req :1;
+	} iff1;
+	struct {
+		uint8_t now :1;
+		uint8_t pad :7;
+	} iff2;
+#if 16 == RRm
+#else //if 32 == RRm
+	uint8_t iff_pad3, iff_pad4;
+#endif
 	struct memctl mem[8];
 };
 typedef struct z80_ z80_s;
