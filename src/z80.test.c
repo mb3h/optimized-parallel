@@ -214,6 +214,10 @@ u16 nn;
 				if (dst)
 					strcpy (dst, "DI");
 			}
+			else if (7 == y) {
+				if (dst)
+					strcpy (dst, "EI");
+			}
 			break;
 		case 5: // 3X5
 			if (0 == (1 & y)) {
