@@ -85,6 +85,7 @@ struct z80_ {
 #else //if 32 == RRm
 	uint8_t iff_pad3, iff_pad4;
 #endif
+	void *eapc2pc_neg;
 	struct memctl mem[8];
 };
 typedef struct z80_ z80_s;

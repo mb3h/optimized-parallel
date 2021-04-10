@@ -108,6 +108,9 @@ M "iff1:" NL
 M "iff2:" NL
 	".struct " M "iff2 +1 +" sizeofPAD LF
 
+M "eapc2pc_neg:" LF
+	".struct " M "eapc2pc_neg +" sizeofPTR LF
+
 M "mem:" NL
 	".struct " M "mem +(8 << " LS "log2of_memctl)" LF
 );
@@ -128,31 +131,32 @@ M "mem:" NL
 #define EDX          DX
 #define EBX          BX
 
-#define CLK               "%ebp"
-#define EAPC              "%edi"
-#define CPU               "%esi"
-#define A                 "%al"
-#define B     M   "reg_b(" CPU ")"
-#define C     M   "reg_c(" CPU ")"
-#define D     M   "reg_d(" CPU ")"
-#define E     M   "reg_e(" CPU ")"
-#define H     M   "reg_h(" CPU ")"
-#define L     M   "reg_l(" CPU ")"
-#define UND_F M   "reg_f(" CPU ")" // (*1)
-#define SPH   M "reg_sph(" CPU ")"
-#define SPL   M "reg_spl(" CPU ")"
-#define BC    M  "reg_bc(" CPU ")"
-#define DE    M  "reg_de(" CPU ")"
-#define HL    M  "reg_hl(" CPU ")"
-#define FA    M  "reg_fa(" CPU ")"
-#define SP    M  "reg_sp(" CPU ")"
-#define PC    M  "reg_pc(" CPU ")"
-#define IFF1  M    "iff1(" CPU ")"
-#define IFF2  M    "iff2(" CPU ")"
-#define ALTBC M  "alt_bc(" CPU ")"
-#define ALTDE M  "alt_de(" CPU ")"
-#define ALTHL M  "alt_hl(" CPU ")"
-#define ALTAF M  "alt_af(" CPU ")"
+#define CLK                         "%ebp"
+#define EAPC                        "%edi"
+#define CPU                         "%esi"
+#define A                           "%al"
+#define B           M       "reg_b(" CPU ")"
+#define C           M       "reg_c(" CPU ")"
+#define D           M       "reg_d(" CPU ")"
+#define E           M       "reg_e(" CPU ")"
+#define H           M       "reg_h(" CPU ")"
+#define L           M       "reg_l(" CPU ")"
+#define UND_F       M       "reg_f(" CPU ")" // (*1)
+#define SPH         M     "reg_sph(" CPU ")"
+#define SPL         M     "reg_spl(" CPU ")"
+#define BC          M      "reg_bc(" CPU ")"
+#define DE          M      "reg_de(" CPU ")"
+#define HL          M      "reg_hl(" CPU ")"
+#define FA          M      "reg_fa(" CPU ")"
+#define SP          M      "reg_sp(" CPU ")"
+#define PC          M      "reg_pc(" CPU ")"
+#define IFF1        M        "iff1(" CPU ")"
+#define IFF2        M        "iff2(" CPU ")"
+#define EAPC2PC_NEG M "eapc2pc_neg(" CPU ")"
+#define ALTBC       M      "alt_bc(" CPU ")"
+#define ALTDE       M      "alt_de(" CPU ")"
+#define ALTHL       M      "alt_hl(" CPU ")"
+#define ALTAF       M      "alt_af(" CPU ")"
 
 #define  CF "0x01"
 #define  NF "0x02"
@@ -469,6 +473,9 @@ OPFUNC(DJNZ)
 	"mov %dl," B NL
 OPEND(DJNZ) // (5+Tw,3[,5])
 
+#define EAPC2ST(reg) "mov " EAPC2PC_NEG "," reg NL "add " EAPC "," reg NL
+OPFUNC(CALL) FETCH2dx(CALL) CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) OPEND(CALL) // (4+Tw,3,4,3,3)
+
 OPFUNC(RET)                  CLK1(10,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) OPEND(RET) // (4+Tw,3,3)
 OPFUNC(RET_NZ) MIFNZ(RET_NZ) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_NZ) CLK1(5,3) OPEND(RET_NZ) // (5+Tw,3,3)
 OPFUNC(RET_Z)  MIFZ (RET_Z)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_Z)  CLK1(5,3) OPEND(RET_Z)
@@ -680,7 +687,7 @@ LC "z80_opcode:" NL
 	".long " OP    "CP_B," OP    "CP_C," OP    "CP_D," OP    "CP_E," OP    "CP_H," OP    "CP_L," OP    "CP_p," OP    "CP_A" NL
 
 	".long " OP "RET_NZ," OP   "POP_BC," OP "JP_NZ," OP       "JP," OP "NOP," OP "PUSH_BC," OP "ADD_A_N," OP "NOP" NL
-	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "NOP," OP "NOP," OP "ADC_A_N," OP "NOP" NL
+	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "NOP," OP    "CALL," OP "ADC_A_N," OP "NOP" NL
 	".long " OP "RET_NC," OP   "POP_DE," OP "JP_NC," OP      "NOP," OP "NOP," OP "PUSH_DE," OP   "SUB_N," OP "NOP" NL
 	".long " OP "RET_C,"  OP      "EXX," OP "JP_C,"  OP      "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
 	".long " OP "RET_PO," OP   "POP_HL," OP "JP_PO," OP      "NOP," OP "NOP," OP "PUSH_HL," OP   "AND_N," OP "NOP" NL
@@ -707,11 +714,14 @@ GFNSTART(exec)
 	"mov 24+0(%esp)," CPU NL
 	"mov " PC "," CX NL
 	"mov " CX "," EAPC NL
+	"and $7 << 13," CX NL // 7 = (1 << 16 -13) -1
 	"shr $13 -2," CX NL
-	"and $7 << 2," CX NL // 7 = (1 << 16 -13) -1
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," CX ",2)," ECX NL // 2 = 1 << log2of(memctl_s) -2
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," CX ",2)," EBX NL // 2 = 1 << log2of(memctl_s) -2
+	"shl $13 -2," CX NL
 	"and $0x1FFF," EAPC NL // 0x1FFF = (1 << 13) -1
-	"add " ECX "," EAPC NL
+	"sub " EBX "," ECX NL
+	"add " EBX "," EAPC NL
+	"mov " ECX "," EAPC2PC_NEG NL
 	"mov " FA "," AX NL
 
 	"dec " EAPC NL

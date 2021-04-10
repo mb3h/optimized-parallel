@@ -427,6 +427,7 @@ char *tail;
 			continue;
 		memset (m_->r16, 0, sizeof(m_->r16));
 		m_->pc = 0;
+		m_->iff1.req = m_->iff1.now = m_->iff2.now = 0;
 	// caption output
 		if (1 == ++line % 32)
 printf ("# %13s SZ-H-PNC %4s SZ-H-PNC CLK  %-19s %-8s (disasm)" "\n", "(INITIAL)", "", "(RESULT)", "CODE");
