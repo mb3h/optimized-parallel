@@ -219,6 +219,12 @@ u16 nn;
 					strcpy (dst, "EI");
 			}
 			break;
+		case 4: // 3X4
+			nn = load_le16 (++src);
+			++src;
+			if (dst)
+				sprintf (dst, "%-4s %s,%s%04Xh", "CALL", cond[y], (0x9FFF < nn) ? "0" : "", nn);
+			break;
 		case 5: // 3X5
 			if (0 == (1 & y)) {
 				if (dst)
@@ -236,7 +242,6 @@ u16 nn;
 			if (dst)
 				sprintf (dst, "%-4s %s%s%02Xh", regop[y], regop8[y], (0x9F < n) ? "0" : "", n);
 			break;
-		case 4: // 3X4
 		case 7: // 3X7
 			break;
 		}
