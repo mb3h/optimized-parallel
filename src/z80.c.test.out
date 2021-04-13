@@ -222,6 +222,7 @@ BC=0103.HL=67FF --------  =>  --------   7  C=02                0B       DEC  BC
               . --------  =>  --------   5  IFF1=1              FB       EI
 DE=6789.HL=ABCD --------  =>  --------   5  DE=ABCD.HL=6789     EB       EX   DE,HL
               . -1------  =>  --------  11  .                   C480B0   CALL NZ,0B080h
+              . -1------  =>  --------  18  SP=-2.PC=B080.[A0EE,2]=1011->B003 CC80B0   CALL Z,0B080h
         BC=0E0F --------  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F C5       PUSH BC
         DE=0E0F --------  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F D5       PUSH DE
         HL=0E0F --------  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F E5       PUSH HL
@@ -229,8 +230,8 @@ DE=6789.HL=ABCD --------  =>  --------   5  DE=ABCD.HL=6789     EB       EX   DE
               . --------  =>  --------  18  SP=-2.PC=B080.[A0EE,2]=1011->B003 CD80B0   CALL 0B080h
            A=45 --------  =>  -1-1---1   8  A=00                C6BB     ADD  A,0BBh
            A=45 -------1  =>  -1-1----   8  A=00                CEBA     ADC  A,0BAh
-           A=45 --------  =>  -1----1-   8  A=00                D645     SUB  45h
 #     (INITIAL) SZ-H-PNC      SZ-H-PNC CLK  (RESULT)            CODE     (disasm)
+           A=45 --------  =>  -1----1-   8  A=00                D645     SUB  45h
            A=45 -------1  =>  -1----10   8  A=00                DE44     SBC  A,44h
            A=45 --------  =>  ---1-1--   8  A=05                E6A7     AND  0A7h
            A=45 --------  =>  1-1--1--   8  A=E2                EEA7     XOR  0A7h

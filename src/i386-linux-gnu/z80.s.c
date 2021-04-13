@@ -476,6 +476,7 @@ OPEND(DJNZ) // (5+Tw,3[,5])
 #define EAPC2ST(reg) "mov " EAPC2PC_NEG "," reg NL "add " EAPC "," reg NL
 OPFUNC(CALL) FETCH2dx(CALL) CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) OPEND(CALL) // (4+Tw,3,4,3,3)
 OPFUNC(CALL_NZ) MIFNZ(CALL_NZ) FETCH2dx(CALL_NZ) CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_NZ) CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_NZ) // (4+Tw,3,4,3,3) (4+Tw,3,3)
+OPFUNC(CALL_Z)  MIFZ (CALL_Z)  FETCH2dx(CALL_Z)  CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_Z)  CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_Z)
 
 OPFUNC(RET)                  CLK1(10,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) OPEND(RET) // (4+Tw,3,3)
 OPFUNC(RET_NZ) MIFNZ(RET_NZ) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_NZ) CLK1(5,3) OPEND(RET_NZ) // (5+Tw,3,3)
@@ -688,7 +689,7 @@ LC "z80_opcode:" NL
 	".long " OP    "CP_B," OP    "CP_C," OP    "CP_D," OP    "CP_E," OP    "CP_H," OP    "CP_L," OP    "CP_p," OP    "CP_A" NL
 
 	".long " OP "RET_NZ," OP   "POP_BC," OP "JP_NZ," OP       "JP," OP "CALL_NZ," OP "PUSH_BC," OP "ADD_A_N," OP "NOP" NL
-	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "NOP," OP    "CALL," OP "ADC_A_N," OP "NOP" NL
+	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "CALL_Z,"  OP    "CALL," OP "ADC_A_N," OP "NOP" NL
 	".long " OP "RET_NC," OP   "POP_DE," OP "JP_NC," OP      "NOP," OP "NOP," OP "PUSH_DE," OP   "SUB_N," OP "NOP" NL
 	".long " OP "RET_C,"  OP      "EXX," OP "JP_C,"  OP      "NOP," OP "NOP," OP "NOP," OP "SBC_A_N," OP "NOP" NL
 	".long " OP "RET_PO," OP   "POP_HL," OP "JP_PO," OP      "NOP," OP "NOP," OP "PUSH_HL," OP   "AND_N," OP "NOP" NL
