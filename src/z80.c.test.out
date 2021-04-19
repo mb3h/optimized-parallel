@@ -226,11 +226,12 @@ DE=6789.HL=ABCD --------  =>  --------   5  DE=ABCD.HL=6789     EB       EX   DE
               . -------1  =>  --------  11  .                   D480B0   CALL NC,0B080h
               . -------1  =>  --------  18  SP=-2.PC=B080.[A0EE,2]=1011->B003 DC80B0   CALL C,0B080h
               . -----1--  =>  --------  11  .                   E480B0   CALL PO,0B080h
+              . -----1--  =>  --------  18  SP=-2.PC=B080.[A0EE,2]=1011->B003 EC80B0   CALL PE,0B080h
         BC=0E0F --------  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F C5       PUSH BC
         DE=0E0F --------  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F D5       PUSH DE
         HL=0E0F --------  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F E5       PUSH HL
-           A=0E ----1111  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F F5       PUSH AF
 #     (INITIAL) SZ-H-PNC      SZ-H-PNC CLK  (RESULT)            CODE     (disasm)
+           A=0E ----1111  =>  --------  12  SP=-2.[A0EE,2]=1011->0E0F F5       PUSH AF
               . --------  =>  --------  18  SP=-2.PC=B080.[A0EE,2]=1011->B003 CD80B0   CALL 0B080h
            A=45 --------  =>  -1-1---1   8  A=00                C6BB     ADD  A,0BBh
            A=45 -------1  =>  -1-1----   8  A=00                CEBA     ADC  A,0BAh
