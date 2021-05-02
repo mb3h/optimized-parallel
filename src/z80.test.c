@@ -243,6 +243,8 @@ u16 nn;
 				sprintf (dst, "%-4s %s%s%02Xh", regop[y], regop8[y], (0x9F < n) ? "0" : "", n);
 			break;
 		case 7: // 3X7
+			if (dst)
+				sprintf (dst, "%-4s %02Xh", "RST", y << 3);
 			break;
 		}
 		break;
@@ -296,6 +298,7 @@ u8 mask;
 	}
 	return dst - begin;
 }
+
 #define SP_DEFAULT 0xA0F0
 static size_t changed_reg_tostr (z80_s *m_, const z80_s *old, const char *sep, char *dst, size_t cb)
 {
@@ -405,6 +408,14 @@ BUG(dst +3 +2 < end)
 	dst = strchr (dst, '\0');
 	return dst - begin;
 }
+
+static void z80_setpc_test (z80_s *m_, u16 pc, void *mem0, void *mem5)
+{
+		m_->mem[0].raw_or_rwfn = mem0;
+		m_->mem[5].raw_or_rwfn = mem5;
+		m_->pc = pc, m_->eapg_min = m_->eapg_max = m_->eapc2pc_neg = 0;
+}
+
 #define SEP "." // for 'sort -kN'
 static void each_opcode_test (z80_s *m_, const char *test_text_path)
 {
@@ -444,8 +455,8 @@ char *p;
 		while (strchr ("01", *p))
 			m_->r.f = m_->r.f << 1 | (u8)(*p++ - '0');
 		// INIT [A000-BFFF] <- AA
-u8 mem5[0x2000];
-		memset (mem5, 0xAA, sizeof(mem5));
+u8 mem[0x4000], *mem0 = mem, *mem5 = mem +0x2000;
+		memset (mem, 0xAA, sizeof(mem));
 		// CODE [B000-]
 		while (strchr (" \t", *p))
 			++p;
@@ -521,8 +532,7 @@ u8 n;
 			else
 				break;
 		}
-		m_->mem[5].raw_or_rwfn = mem5, m_->mem[5].rwfn_priv = 0;
-		m_->pc = 0xB000;
+		z80_setpc_test (m_, 0xB000, mem0, mem5);
 z80_s old;
 		memcpy (&old, m_, sizeof(z80_s));
 u16 pc_before_exec;
@@ -653,6 +663,7 @@ BUG(&m_->rr.de == (u16 *)&m_->r.d)
 		break;
 	case 1:
 		each_opcode_test (m_, "./z80.c" ".test.in");
+//		each_opcode_test (m_, "./z80.c" ".test.in2");
 		break;
 	}
 	return 0;

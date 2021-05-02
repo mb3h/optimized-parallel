@@ -110,6 +110,10 @@ M "iff2:" NL
 
 M "eapc2pc_neg:" LF
 	".struct " M "eapc2pc_neg +" sizeofPTR LF
+M "eapg_min:" LF
+	".struct " M "eapg_min +" sizeofPTR LF
+M "eapg_max:" LF
+	".struct " M "eapg_max +" sizeofPTR LF
 
 M "mem:" NL
 	".struct " M "mem +(8 << " LS "log2of_memctl)" LF
@@ -131,32 +135,37 @@ M "mem:" NL
 #define EDX          DX
 #define EBX          BX
 
-#define CLK                         "%ebp"
-#define EAPC                        "%edi"
-#define CPU                         "%esi"
-#define A                           "%al"
-#define B           M       "reg_b(" CPU ")"
-#define C           M       "reg_c(" CPU ")"
-#define D           M       "reg_d(" CPU ")"
-#define E           M       "reg_e(" CPU ")"
-#define H           M       "reg_h(" CPU ")"
-#define L           M       "reg_l(" CPU ")"
-#define UND_F       M       "reg_f(" CPU ")" // (*1)
-#define SPH         M     "reg_sph(" CPU ")"
-#define SPL         M     "reg_spl(" CPU ")"
-#define BC          M      "reg_bc(" CPU ")"
-#define DE          M      "reg_de(" CPU ")"
-#define HL          M      "reg_hl(" CPU ")"
-#define FA          M      "reg_fa(" CPU ")"
-#define SP          M      "reg_sp(" CPU ")"
-#define PC          M      "reg_pc(" CPU ")"
-#define IFF1        M        "iff1(" CPU ")"
-#define IFF2        M        "iff2(" CPU ")"
-#define EAPC2PC_NEG M "eapc2pc_neg(" CPU ")"
-#define ALTBC       M      "alt_bc(" CPU ")"
-#define ALTDE       M      "alt_de(" CPU ")"
-#define ALTHL       M      "alt_hl(" CPU ")"
-#define ALTAF       M      "alt_af(" CPU ")"
+#define CLK                        "%ebp"
+#define VPC                        "%edi"
+#define PC                         VPC
+#define CPU                        "%esi"
+#define A                          "%al"
+#define B          M       "reg_b(" CPU ")"
+#define C          M       "reg_c(" CPU ")"
+#define D          M       "reg_d(" CPU ")"
+#define E          M       "reg_e(" CPU ")"
+#define H          M       "reg_h(" CPU ")"
+#define L          M       "reg_l(" CPU ")"
+#define UND_F      M       "reg_f(" CPU ")" // (*1)
+#define SPH        M     "reg_sph(" CPU ")"
+#define SPL        M     "reg_spl(" CPU ")"
+#define BC         M      "reg_bc(" CPU ")"
+#define DE         M      "reg_de(" CPU ")"
+#define HL         M      "reg_hl(" CPU ")"
+#define FA         M      "reg_fa(" CPU ")"
+#define SP         M      "reg_sp(" CPU ")"
+#define PC_ORIG    M      "reg_pc(" CPU ")"
+#define IFF1       M        "iff1(" CPU ")"
+#define IFF2       M        "iff2(" CPU ")"
+#define ALTBC      M      "alt_bc(" CPU ")"
+#define ALTDE      M      "alt_de(" CPU ")"
+#define ALTHL      M      "alt_hl(" CPU ")"
+#define ALTAF      M      "alt_af(" CPU ")"
+#define EAPG_MIN   M    "eapg_min(" CPU ")"
+#define EAPG_MAX   M    "eapg_max(" CPU ")"
+#define VPC2PC_NEG M "eapc2pc_neg(" CPU ")"
+#define PC2VA(reg) "sub " VPC2PC_NEG "," reg NL
+#define VA2PC(reg) "add " VPC2PC_NEG "," reg NL
 
 #define  CF "0x01"
 #define  NF "0x02"
@@ -203,7 +212,37 @@ M "mem:" NL
 #define bx2ST(dst) \
 	"mov " BX "," dst NL
 #define SWAPdx(src) \
-	"XCHG " src "," DX NL
+	"xchg " src "," DX NL
+
+#define JPNOTPGBRK(ofs, reg) "cmp " EAPG_MIN "," reg NL \
+                        /*   "jc other_page_" #id NL*/ ".byte 0x72, 0x05" NL \
+                             "cmp " EAPG_MAX "," reg NL /* 3B 7E xx */ \
+                        /*   "jc same_page_" #id NL*/ ".byte 0x72, 0x00 +" #ofs NL \
+                        /*"other_page_" #id ":" NL*/ \
+                             /* xx ... (<ofs> bytes) */ \
+                        /*"same_page_" #id ":" NL*/
+#define JPIFPGBRK(ofs, reg) "cmp " EAPG_MIN "," reg NL \
+                       /*   "jc other_page_" #id NL*/ ".byte 0x72, 0x05 +" #ofs NL \
+                            "cmp " EAPG_MAX "," reg NL /* 3B 7E xx */ \
+                       /*   "jnc other_page_" #id NL*/ ".byte 0x73, 0x00 +" #ofs NL \
+                            /* xx ... (<ofs> bytes) */ \
+                       /*"other_page_" #id ":" NL*/
+
+#define cx2VPC     "mov " CX "," PC NL \
+                   PC2VA(PC) \
+                   JPNOTPGBRK(5, VPC) \
+                   "call " LC "SetPC" NL /* E8 xx xx xx xx */
+#define cx2VPC_ret "mov " CX "," PC NL \
+                   PC2VA(PC) \
+                   JPIFPGBRK(1, VPC) \
+                   "ret" NL /* C3 */ \
+                   "jmp " LC "SetPC" LF
+#define dx2VPC_ret "mov " DX "," PC NL \
+                   PC2VA(PC) \
+                   JPIFPGBRK(1, VPC) \
+                   "ret" NL /* C3 */ \
+						 "mov " DX "," CX NL \
+                   "jmp " LC "SetPC" LF
 
 #define GFNSTART(label) \
 	__asm__ ( \
@@ -238,9 +277,31 @@ M "mem:" NL
 		".cfi_startproc" NL
 #define OPEND(label) \
 		"ret" NL \
+		OPEND0(label)
+#define OPEND0(label) \
 		".cfi_endproc" NL \
 		".size " LC #label ",.-" LC #label NL \
 	);
+
+LCFUNC(SetPC)
+
+
+	"mov " CX "," VPC NL
+	"and $7 << 13," CX NL // 7 = (1 << 16 -13) -1
+	"shr $13 -2," CX NL
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," CX ",2)," EBX NL // 2 = 1 << log2of(memctl_s) -2
+	"mov " EBX "," EAPG_MIN NL
+	"add $1 << 13," EBX NL
+	"mov " EBX "," EAPG_MAX NL
+	"sub $1 << 13," EBX NL
+
+	"shl $13 -2," CX NL
+	"and $0x1FFF," VPC NL // 0x1FFF = (1 << 13) -1
+	"sub " EBX "," ECX NL
+	"add " EBX "," VPC NL
+	"mov " ECX "," VPC2PC_NEG NL
+	"dec " VPC NL
+LCEND(SetPC)
 
 LCFUNC(cxREAD2dl)
 	"mov " CX "," BX NL
@@ -322,37 +383,39 @@ LCEND(dx2WRITEcx)
 // CAUTION: (*2)
 #define FETCH2dl(label) \
 	/* TODO: mem[] */ \
-	"inc " EAPC NL \
-	"movzbl (" EAPC ")," "%edx" NL
+	"inc " VPC NL \
+	"movzbl (" VPC ")," "%edx" NL
 // CAUTION: (*2)
 #define FETCH2dl2sdx \
 	/* TODO: mem[] */ \
-	"inc " EAPC NL \
-	"movsbl (" EAPC ")," "%edx" NL
+	"inc " VPC NL \
+	"movsbl (" VPC ")," "%edx" NL
 #define FETCH2dx(label) \
 	/* TODO: mem[] */ \
-	"add $2," EAPC NL \
-	"movzwl -1(" EAPC ")," "%edx" NL
+	"add $2," VPC NL \
+	"movzwl -1(" VPC ")," "%edx" NL
 
 #define SET2ah(mask) \
 	"or $(" mask "),%ah" NL
 #define RES2ah(mask) \
 	"and $(0xff - (" mask ")),%ah" NL
 
-#define LD2EAPC(reg) \
+#if 0
+#define dx2VPC_ret \
 	/* TODO: optimize */ \
-	"mov " reg "," EAPC NL \
-	"shr $13 -2," reg NL \
-	"and $7 << 2," reg NL \
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," reg ",2)," reg NL \
-	"and $0x1FFF," EAPC NL \
-	"add " reg "," EAPC NL \
-	"dec " EAPC NL \
+	"mov " DX "," PC NL \
+	"shr $13 -2," DX NL \
+	"and $7 << 2," DX NL \
+	"mov " M "raw_or_rwfn + " M "mem(" CPU "," DX ",2)," EDX NL \
+	"and $0x1FFF," PC NL \
+	"add " EDX "," PC NL \
+	"dec " VPC NL \
 	"ret" NL
+#endif
 
 #define sdx2JR \
 	/* TODO: mem[] */ \
-	"add " EDX "," EAPC NL \
+	"add " EDX "," VPC NL \
 	"ret" NL
 //
 #define F2ah \
@@ -447,22 +510,22 @@ OPFUNC(RLA)  ah2fSZHNC "rcl $1," A NL al2ST(UND_F) SZHNCf2ah "and $(0xff - (" HF
 OPFUNC(RRA)  ah2fSZHNC "rcr $1," A NL al2ST(UND_F) SZHNCf2ah "and $(0xff - (" HF "+" NF ")),%ah" NL CLK1(4,1) OPEND(RRA) 
 
 OPFUNC(JR)                 FETCH2dl2sdx CLK1(12,3) sdx2JR                                        OPEND(JR)    // (4+Tw,3,5)
-OPFUNC(JR_NZ) MIFNZ(JR_NZ) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NZ) CLK1(7,2) "inc " EAPC NL OPEND(JR_NZ) // (4+Tw,3[,5])
-OPFUNC(JR_Z)  MIFZ (JR_Z)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_Z)  CLK1(7,2) "inc " EAPC NL OPEND(JR_Z) 
-OPFUNC(JR_NC) MIFNC(JR_NC) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NC) CLK1(7,2) "inc " EAPC NL OPEND(JR_NC)
-OPFUNC(JR_C)  MIFC (JR_C)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_C)  CLK1(7,2) "inc " EAPC NL OPEND(JR_C) 
+OPFUNC(JR_NZ) MIFNZ(JR_NZ) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NZ) CLK1(7,2) "inc " VPC NL OPEND(JR_NZ) // (4+Tw,3[,5])
+OPFUNC(JR_Z)  MIFZ (JR_Z)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_Z)  CLK1(7,2) "inc " VPC NL OPEND(JR_Z) 
+OPFUNC(JR_NC) MIFNC(JR_NC) FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_NC) CLK1(7,2) "inc " VPC NL OPEND(JR_NC)
+OPFUNC(JR_C)  MIFC (JR_C)  FETCH2dl2sdx CLK1(12,3) sdx2JR MELSE0(JR_C)  CLK1(7,2) "inc " VPC NL OPEND(JR_C) 
 
 
-OPFUNC(JP)    FETCH2dx(JP) CLK1(10,3)                 LD2EAPC(DX)                                   OPEND(JP)    // (4+Tw,3,3)
-OPFUNC(JP_NZ) CLK1(10,3) MIFNZ(JP_NZ) FETCH2dx(JP_NZ) LD2EAPC(DX) MELSE0(JP_NZ) ADDn(EAPC,2) OPEND(JP_NZ) // (4+Tw,3,3)
-OPFUNC(JP_Z)  CLK1(10,3) MIFZ (JP_Z)  FETCH2dx(JP_Z)  LD2EAPC(DX) MELSE0(JP_Z)  ADDn(EAPC,2) OPEND(JP_Z) 
-OPFUNC(JP_NC) CLK1(10,3) MIFNC(JP_NC) FETCH2dx(JP_NC) LD2EAPC(DX) MELSE0(JP_NC) ADDn(EAPC,2) OPEND(JP_NC)
-OPFUNC(JP_C)  CLK1(10,3) MIFC (JP_C)  FETCH2dx(JP_C)  LD2EAPC(DX) MELSE0(JP_C)  ADDn(EAPC,2) OPEND(JP_C) 
-OPFUNC(JP_PO) CLK1(10,3) MIFPO(JP_PO) FETCH2dx(JP_PO) LD2EAPC(DX) MELSE0(JP_PO) ADDn(EAPC,2) OPEND(JP_PO)
-OPFUNC(JP_PE) CLK1(10,3) MIFPE(JP_PE) FETCH2dx(JP_PE) LD2EAPC(DX) MELSE0(JP_PE) ADDn(EAPC,2) OPEND(JP_PE)
-OPFUNC(JP_P)  CLK1(10,3) MIFP (JP_P)  FETCH2dx(JP_P)  LD2EAPC(DX) MELSE0(JP_P)  ADDn(EAPC,2) OPEND(JP_P) 
-OPFUNC(JP_M)  CLK1(10,3) MIFM (JP_M)  FETCH2dx(JP_M)  LD2EAPC(DX) MELSE0(JP_M)  ADDn(EAPC,2) OPEND(JP_M) 
-OPFUNC(JP_HL) LD2dx(HL) CLK1(4,1) LD2EAPC(DX) OPEND(JP_HL) // (4+Tw)
+OPFUNC(JP)    FETCH2dx(JP) CLK1(10,3)                 dx2VPC_ret                                   OPEND(JP)    // (4+Tw,3,3)
+OPFUNC(JP_NZ) CLK1(10,3) MIFNZ(JP_NZ) FETCH2dx(JP_NZ) dx2VPC_ret MELSE0(JP_NZ) ADDn(VPC,2) OPEND(JP_NZ) // (4+Tw,3,3)
+OPFUNC(JP_Z)  CLK1(10,3) MIFZ (JP_Z)  FETCH2dx(JP_Z)  dx2VPC_ret MELSE0(JP_Z)  ADDn(VPC,2) OPEND(JP_Z) 
+OPFUNC(JP_NC) CLK1(10,3) MIFNC(JP_NC) FETCH2dx(JP_NC) dx2VPC_ret MELSE0(JP_NC) ADDn(VPC,2) OPEND(JP_NC)
+OPFUNC(JP_C)  CLK1(10,3) MIFC (JP_C)  FETCH2dx(JP_C)  dx2VPC_ret MELSE0(JP_C)  ADDn(VPC,2) OPEND(JP_C) 
+OPFUNC(JP_PO) CLK1(10,3) MIFPO(JP_PO) FETCH2dx(JP_PO) dx2VPC_ret MELSE0(JP_PO) ADDn(VPC,2) OPEND(JP_PO)
+OPFUNC(JP_PE) CLK1(10,3) MIFPE(JP_PE) FETCH2dx(JP_PE) dx2VPC_ret MELSE0(JP_PE) ADDn(VPC,2) OPEND(JP_PE)
+OPFUNC(JP_P)  CLK1(10,3) MIFP (JP_P)  FETCH2dx(JP_P)  dx2VPC_ret MELSE0(JP_P)  ADDn(VPC,2) OPEND(JP_P) 
+OPFUNC(JP_M)  CLK1(10,3) MIFM (JP_M)  FETCH2dx(JP_M)  dx2VPC_ret MELSE0(JP_M)  ADDn(VPC,2) OPEND(JP_M) 
+OPFUNC(JP_HL) LD2dx(HL) CLK1(4,1) dx2VPC_ret OPEND(JP_HL) // (4+Tw)
 
 OPFUNC(DJNZ)
 	"mov " B ",%dl" NL
@@ -473,26 +536,27 @@ OPFUNC(DJNZ)
 	"mov %dl," B NL
 OPEND(DJNZ) // (5+Tw,3[,5])
 
-#define EAPC2ST(reg) "mov " EAPC2PC_NEG "," reg NL "add " EAPC "," reg NL
-OPFUNC(CALL) FETCH2dx(CALL) CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) OPEND(CALL) // (4+Tw,3,4,3,3)
-OPFUNC(CALL_NZ) MIFNZ(CALL_NZ) FETCH2dx(CALL_NZ) CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_NZ) CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_NZ) // (4+Tw,3,4,3,3) (4+Tw,3,3)
-OPFUNC(CALL_Z)  MIFZ (CALL_Z)  FETCH2dx(CALL_Z)  CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_Z)  CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_Z)
-OPFUNC(CALL_NC) MIFNC(CALL_NC) FETCH2dx(CALL_NC) CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_NC) CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_NC)
-OPFUNC(CALL_C)  MIFC (CALL_C)  FETCH2dx(CALL_C)  CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_C)  CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_C)
-OPFUNC(CALL_PO) MIFPO(CALL_PO) FETCH2dx(CALL_PO) CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_PO) CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_PO)
-OPFUNC(CALL_PE) MIFPE(CALL_PE) FETCH2dx(CALL_PE) CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_PE) CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_PE)
-OPFUNC(CALL_P)  MIFP (CALL_P)  FETCH2dx(CALL_P)  CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_P)  CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_P) 
-OPFUNC(CALL_M)  MIFM (CALL_M)  FETCH2dx(CALL_M)  CLK1(17,5) "push " DX NL "inc " EAPC NL EAPC2ST(DX) LD2cx(SP) SUBn(CX,2) cx2ST(SP) dx2WRITEcx "pop " DX NL LD2EAPC(DX) MELSE0(CALL_M)  CLK1(10,3) ADDn(EAPC,2) OPEND(CALL_M) 
+OPFUNC(RST_00) CLK1(11,3) "mov " VPC "," EDX NL LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx "mov $0x0000," CX NL cx2VPC_ret OPEND0(RST_00) // (5+Tw,3,3)
 
-OPFUNC(RET)                  CLK1(10,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) OPEND(RET) // (4+Tw,3,3)
-OPFUNC(RET_NZ) MIFNZ(RET_NZ) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_NZ) CLK1(5,3) OPEND(RET_NZ) // (5+Tw,3,3)
-OPFUNC(RET_Z)  MIFZ (RET_Z)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_Z)  CLK1(5,3) OPEND(RET_Z)
-OPFUNC(RET_NC) MIFNC(RET_NC) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_NC) CLK1(5,3) OPEND(RET_NC)
-OPFUNC(RET_C)  MIFC (RET_C)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_C)  CLK1(5,3) OPEND(RET_C)
-OPFUNC(RET_PO) MIFPO(RET_PO) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_PO) CLK1(5,3) OPEND(RET_PO)
-OPFUNC(RET_PE) MIFPE(RET_PE) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_PE) CLK1(5,3) OPEND(RET_PE)
-OPFUNC(RET_P)  MIFP (RET_P)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_P)  CLK1(5,3) OPEND(RET_P)
-OPFUNC(RET_M)  MIFM (RET_M)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) LD2EAPC(DX) MELSE0(RET_M)  CLK1(5,3) OPEND(RET_M)
+OPFUNC(CALL) FETCH2dx(CALL) CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret OPEND(CALL) // (4+Tw,3,4,3,3)
+OPFUNC(CALL_NZ) MIFNZ(CALL_NZ) FETCH2dx(CALL_NZ) CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_NZ) CLK1(10,3) ADDn(VPC,2) OPEND(CALL_NZ) // (4+Tw,3,4,3,3) (4+Tw,3,3)
+OPFUNC(CALL_Z)  MIFZ (CALL_Z)  FETCH2dx(CALL_Z)  CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_Z)  CLK1(10,3) ADDn(VPC,2) OPEND(CALL_Z)
+OPFUNC(CALL_NC) MIFNC(CALL_NC) FETCH2dx(CALL_NC) CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_NC) CLK1(10,3) ADDn(VPC,2) OPEND(CALL_NC)
+OPFUNC(CALL_C)  MIFC (CALL_C)  FETCH2dx(CALL_C)  CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_C)  CLK1(10,3) ADDn(VPC,2) OPEND(CALL_C)
+OPFUNC(CALL_PO) MIFPO(CALL_PO) FETCH2dx(CALL_PO) CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_PO) CLK1(10,3) ADDn(VPC,2) OPEND(CALL_PO)
+OPFUNC(CALL_PE) MIFPE(CALL_PE) FETCH2dx(CALL_PE) CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_PE) CLK1(10,3) ADDn(VPC,2) OPEND(CALL_PE)
+OPFUNC(CALL_P)  MIFP (CALL_P)  FETCH2dx(CALL_P)  CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_P)  CLK1(10,3) ADDn(VPC,2) OPEND(CALL_P) 
+OPFUNC(CALL_M)  MIFM (CALL_M)  FETCH2dx(CALL_M)  CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_M)  CLK1(10,3) ADDn(VPC,2) OPEND(CALL_M) 
+
+OPFUNC(RET)                  CLK1(10,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2VPC_ret OPEND(RET) // (4+Tw,3,3)
+OPFUNC(RET_NZ) MIFNZ(RET_NZ) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2VPC_ret MELSE0(RET_NZ) CLK1(5,3) OPEND(RET_NZ) // (5+Tw,3,3)
+OPFUNC(RET_Z)  MIFZ (RET_Z)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2VPC_ret MELSE0(RET_Z)  CLK1(5,3) OPEND(RET_Z)
+OPFUNC(RET_NC) MIFNC(RET_NC) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2VPC_ret MELSE0(RET_NC) CLK1(5,3) OPEND(RET_NC)
+OPFUNC(RET_C)  MIFC (RET_C)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2VPC_ret MELSE0(RET_C)  CLK1(5,3) OPEND(RET_C)
+OPFUNC(RET_PO) MIFPO(RET_PO) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2VPC_ret MELSE0(RET_PO) CLK1(5,3) OPEND(RET_PO)
+OPFUNC(RET_PE) MIFPE(RET_PE) CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2VPC_ret MELSE0(RET_PE) CLK1(5,3) OPEND(RET_PE)
+OPFUNC(RET_P)  MIFP (RET_P)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2VPC_ret MELSE0(RET_P)  CLK1(5,3) OPEND(RET_P)
+OPFUNC(RET_M)  MIFM (RET_M)  CLK1(11,3) LD2cx(SP) cxREAD2dx ADDn(SP,2) dx2VPC_ret MELSE0(RET_M)  CLK1(5,3) OPEND(RET_M)
 
 OPFUNC(ADD_HL_BC) LD2dx(HL) ah2ADDdx(B,C)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_BC) // (4+Tw,4,3)
 OPFUNC(ADD_HL_DE) LD2dx(HL) ah2ADDdx(D,E)     dl2ST(L) CLK1(11,3) dh2ST(H) OPEND(ADD_HL_DE)
@@ -694,7 +758,7 @@ LC "z80_opcode:" NL
 	".long " OP    "OR_B," OP    "OR_C," OP    "OR_D," OP    "OR_E," OP    "OR_H," OP    "OR_L," OP    "OR_p," OP    "OR_A" NL
 	".long " OP    "CP_B," OP    "CP_C," OP    "CP_D," OP    "CP_E," OP    "CP_H," OP    "CP_L," OP    "CP_p," OP    "CP_A" NL
 
-	".long " OP "RET_NZ," OP   "POP_BC," OP "JP_NZ," OP       "JP," OP "CALL_NZ," OP "PUSH_BC," OP "ADD_A_N," OP "NOP" NL
+	".long " OP "RET_NZ," OP   "POP_BC," OP "JP_NZ," OP       "JP," OP "CALL_NZ," OP "PUSH_BC," OP "ADD_A_N," OP "RST_00" NL
 	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "CALL_Z,"  OP    "CALL," OP "ADC_A_N," OP "NOP" NL
 	".long " OP "RET_NC," OP   "POP_DE," OP "JP_NC," OP      "NOP," OP "CALL_NC," OP "PUSH_DE," OP   "SUB_N," OP "NOP" NL
 	".long " OP "RET_C,"  OP      "EXX," OP "JP_C,"  OP      "NOP," OP "CALL_C,"  OP     "NOP," OP "SBC_A_N," OP "NOP" NL
@@ -714,25 +778,14 @@ GFNSTART(exec)
 	".cfi_offset " CLK ",-16" NL // ebp
 	"push " EBX NL
 	".cfi_def_cfa_offset 20" NL
-	"push " EAPC NL
+	"push " VPC NL
 	".cfi_def_cfa_offset 24" NL
 
 
-
 	"mov 24+0(%esp)," CPU NL
-	"mov " PC "," CX NL
-	"mov " CX "," EAPC NL
-	"and $7 << 13," CX NL // 7 = (1 << 16 -13) -1
-	"shr $13 -2," CX NL
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," CX ",2)," EBX NL // 2 = 1 << log2of(memctl_s) -2
-	"shl $13 -2," CX NL
-	"and $0x1FFF," EAPC NL // 0x1FFF = (1 << 13) -1
-	"sub " EBX "," ECX NL
-	"add " EBX "," EAPC NL
-	"mov " ECX "," EAPC2PC_NEG NL
+	"mov " PC_ORIG "," CX NL
+	cx2VPC
 	"mov " FA "," AX NL
-
-	"dec " EAPC NL
 	"xor " CLK "," CLK LF
 LC "z80_exec_loop:"
 	FETCH2dl(z80_exec)
@@ -742,16 +795,12 @@ LC "z80_exec_loop:"
 	"jc " LC "z80_exec_loop" NL
 	F2ah
 	"mov " AX "," FA NL
-	"inc " EAPC NL
-	"mov " PC "," AX NL // (*2)
-	"and $7 << 13," AX NL // 7 = (1 << 16 -13) -1
-	"add " AX "," EAPC NL
-	"shr $13 -2," AX NL
-	"sub " M "raw_or_rwfn + " M "mem(" CPU "," AX ",2)," EAPC NL // 2 = 1 << log2of(memctl_s) -2
-	"mov " EAPC "," PC NL
+	"inc " VPC NL
+	VA2PC(VPC)
+	"mov " PC "," PC_ORIG NL
 	"mov " CLK "," AX NL
 	
-	"pop " EAPC NL
+	"pop " VPC NL
 	".cfi_def_cfa esp,20" NL
 	"pop " EBX NL
 	".cfi_def_cfa_offset 16" NL

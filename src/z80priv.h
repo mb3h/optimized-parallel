@@ -86,6 +86,8 @@ struct z80_ {
 	uint8_t iff_pad3, iff_pad4;
 #endif
 	void *eapc2pc_neg;
+	void *eapg_min;
+	void *eapg_max;
 	struct memctl mem[8];
 };
 typedef struct z80_ z80_s;
