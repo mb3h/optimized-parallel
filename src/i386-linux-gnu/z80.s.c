@@ -137,7 +137,7 @@ M "mem:" NL
 
 #define CLK                        "%ebp"
 #define VPC                        "%edi"
-#define PC                         VPC
+#define PC                          VPC
 #define CPU                        "%esi"
 #define A                          "%al"
 #define B          M       "reg_b(" CPU ")"
@@ -284,9 +284,7 @@ M "mem:" NL
 	);
 
 LCFUNC(SetPC)
-
-
-	"mov " CX "," VPC NL
+	"mov " CX "," PC NL
 	"and $7 << 13," CX NL // 7 = (1 << 16 -13) -1
 	"shr $13 -2," CX NL
 	"mov " M "raw_or_rwfn + " M "mem(" CPU "," CX ",2)," EBX NL // 2 = 1 << log2of(memctl_s) -2
@@ -296,9 +294,9 @@ LCFUNC(SetPC)
 	"sub $1 << 13," EBX NL
 
 	"shl $13 -2," CX NL
-	"and $0x1FFF," VPC NL // 0x1FFF = (1 << 13) -1
-	"sub " EBX "," ECX NL
-	"add " EBX "," VPC NL
+	"and $0x1FFF," PC NL // 0x1FFF = (1 << 13) -1
+	"sub " EBX "," CX NL
+	"add " EBX "," PC NL
 	"mov " ECX "," VPC2PC_NEG NL
 	"dec " VPC NL
 LCEND(SetPC)
@@ -399,19 +397,6 @@ LCEND(dx2WRITEcx)
 	"or $(" mask "),%ah" NL
 #define RES2ah(mask) \
 	"and $(0xff - (" mask ")),%ah" NL
-
-#if 0
-#define dx2VPC_ret \
-	/* TODO: optimize */ \
-	"mov " DX "," PC NL \
-	"shr $13 -2," DX NL \
-	"and $7 << 2," DX NL \
-	"mov " M "raw_or_rwfn + " M "mem(" CPU "," DX ",2)," EDX NL \
-	"and $0x1FFF," PC NL \
-	"add " EDX "," PC NL \
-	"dec " VPC NL \
-	"ret" NL
-#endif
 
 #define sdx2JR \
 	/* TODO: mem[] */ \
@@ -537,6 +522,7 @@ OPFUNC(DJNZ)
 OPEND(DJNZ) // (5+Tw,3[,5])
 
 OPFUNC(RST_00) CLK1(11,3) "mov " VPC "," EDX NL LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx "mov $0x0000," CX NL cx2VPC_ret OPEND0(RST_00) // (5+Tw,3,3)
+OPFUNC(RST_08) CLK1(11,3) "mov " VPC "," EDX NL LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx "mov $0x0008," CX NL cx2VPC_ret OPEND0(RST_08)
 
 OPFUNC(CALL) FETCH2dx(CALL) CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret OPEND(CALL) // (4+Tw,3,4,3,3)
 OPFUNC(CALL_NZ) MIFNZ(CALL_NZ) FETCH2dx(CALL_NZ) CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_NZ) CLK1(10,3) ADDn(VPC,2) OPEND(CALL_NZ) // (4+Tw,3,4,3,3) (4+Tw,3,3)
@@ -759,7 +745,7 @@ LC "z80_opcode:" NL
 	".long " OP    "CP_B," OP    "CP_C," OP    "CP_D," OP    "CP_E," OP    "CP_H," OP    "CP_L," OP    "CP_p," OP    "CP_A" NL
 
 	".long " OP "RET_NZ," OP   "POP_BC," OP "JP_NZ," OP       "JP," OP "CALL_NZ," OP "PUSH_BC," OP "ADD_A_N," OP "RST_00" NL
-	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "CALL_Z,"  OP    "CALL," OP "ADC_A_N," OP "NOP" NL
+	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "CALL_Z,"  OP    "CALL," OP "ADC_A_N," OP "RST_08" NL
 	".long " OP "RET_NC," OP   "POP_DE," OP "JP_NC," OP      "NOP," OP "CALL_NC," OP "PUSH_DE," OP   "SUB_N," OP "NOP" NL
 	".long " OP "RET_C,"  OP      "EXX," OP "JP_C,"  OP      "NOP," OP "CALL_C,"  OP     "NOP," OP "SBC_A_N," OP "NOP" NL
 	".long " OP "RET_PO," OP   "POP_HL," OP "JP_PO," OP      "NOP," OP "CALL_PO," OP "PUSH_HL," OP   "AND_N," OP "NOP" NL
