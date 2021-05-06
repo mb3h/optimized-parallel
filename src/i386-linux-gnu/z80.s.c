@@ -525,6 +525,7 @@ OPFUNC(RST_00) CLK1(11,3) "mov " VPC "," EDX NL LD2cx(SP) "inc " EDX NL SUBn(CX,
 OPFUNC(RST_08) CLK1(11,3) "mov " VPC "," EDX NL LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx "mov $0x0008," CX NL cx2VPC_ret OPEND0(RST_08)
 OPFUNC(RST_10) CLK1(11,3) "mov " VPC "," EDX NL LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx "mov $0x0010," CX NL cx2VPC_ret OPEND0(RST_10)
 OPFUNC(RST_18) CLK1(11,3) "mov " VPC "," EDX NL LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx "mov $0x0018," CX NL cx2VPC_ret OPEND0(RST_18)
+OPFUNC(RST_20) CLK1(11,3) "mov " VPC "," EDX NL LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx "mov $0x0020," CX NL cx2VPC_ret OPEND0(RST_20)
 
 OPFUNC(CALL) FETCH2dx(CALL) CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret OPEND(CALL) // (4+Tw,3,4,3,3)
 OPFUNC(CALL_NZ) MIFNZ(CALL_NZ) FETCH2dx(CALL_NZ) CLK1(17,5) SWAPdx(VPC) LD2cx(SP) "inc " EDX NL SUBn(CX,2) VA2PC(EDX) cx2ST(SP) dx2WRITEcx SWAPdx(PC) dx2VPC_ret MELSE0(CALL_NZ) CLK1(10,3) ADDn(VPC,2) OPEND(CALL_NZ) // (4+Tw,3,4,3,3) (4+Tw,3,3)
@@ -750,7 +751,7 @@ LC "z80_opcode:" NL
 	".long " OP "RET_Z,"  OP      "RET," OP "JP_Z,"  OP      "NOP," OP "CALL_Z,"  OP    "CALL," OP "ADC_A_N," OP "RST_08" NL
 	".long " OP "RET_NC," OP   "POP_DE," OP "JP_NC," OP      "NOP," OP "CALL_NC," OP "PUSH_DE," OP   "SUB_N," OP "RST_10" NL
 	".long " OP "RET_C,"  OP      "EXX," OP "JP_C,"  OP      "NOP," OP "CALL_C,"  OP     "NOP," OP "SBC_A_N," OP "RST_18" NL
-	".long " OP "RET_PO," OP   "POP_HL," OP "JP_PO," OP      "NOP," OP "CALL_PO," OP "PUSH_HL," OP   "AND_N," OP "NOP" NL
+	".long " OP "RET_PO," OP   "POP_HL," OP "JP_PO," OP      "NOP," OP "CALL_PO," OP "PUSH_HL," OP   "AND_N," OP "RST_20" NL
 	".long " OP "RET_PE," OP    "JP_HL," OP "JP_PE," OP "EX_DE_HL," OP "CALL_PE," OP     "NOP," OP   "XOR_N," OP "NOP" NL
 	".long " OP "RET_P,"  OP   "POP_AF," OP "JP_P,"  OP       "DI," OP  "CALL_P," OP "PUSH_AF," OP    "OR_N," OP "NOP" NL
 	".long " OP "RET_M,"  OP "LD_SP_HL," OP "JP_M,"  OP       "EI," OP  "CALL_M," OP     "NOP," OP    "CP_N," OP "NOP" NL
