@@ -118,6 +118,17 @@ static const unsigned RR2I[4] = {
 # endif
 #endif
 };
+static const unsigned RR2I2[4] = {
+#if 16 == RRm
+	0,    1,    2,    4
+#else //if 32 == RRm
+# if BYTE_ORDER == LITTLE_ENDIAN
+	0,    2,    4,    8
+# else
+	0 +2, 2 +2, 4 +2, 8 +2
+# endif
+#endif
+};
 
 typedef struct memctl memctl_s;
 

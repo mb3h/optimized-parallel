@@ -701,6 +701,17 @@ u8 n;
 }
 
 // 3X1
+static unsigned pop_rr (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u16 *rr;
+	rr = m_->r16 + RR2I2[3 & p[0] >> 4];
+	*rr = read_to_nn (m_->mem, m_->rr.sp, &clocks);
+	m_->rr.sp += 2;
+	return clocks;
+}
 static unsigned exx (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -892,13 +903,13 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r ,  or_r 
 	,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r 
 
-	, NULL  , NULL    , cond_jp , jp      , NULL  , NULL  , add_n , NULL  
+	, NULL  , pop_rr  , cond_jp , jp      , NULL  , NULL  , add_n , NULL  
 	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , adc_n , NULL  
-	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , sub_n , NULL  
+	, NULL  , pop_rr  , cond_jp , NULL    , NULL  , NULL  , sub_n , NULL  
 	, NULL  , exx     , cond_jp , NULL    , NULL  , NULL  , sbc_n , NULL  
-	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , and_n , NULL  
+	, NULL  , pop_rr  , cond_jp , NULL    , NULL  , NULL  , and_n , NULL  
 	, NULL  , jp_hl   , cond_jp , ex_de_hl, NULL  , NULL  , xor_n , NULL  
-	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  ,  or_n , NULL  
+	, NULL  , pop_rr  , cond_jp , NULL    , NULL  , NULL  ,  or_n , NULL  
 	, NULL  , ld_sp_hl, cond_jp , NULL    , NULL  , NULL  ,  cp_n , NULL  
 };
 
