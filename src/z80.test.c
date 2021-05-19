@@ -60,7 +60,8 @@ const u8 *src, *src0;
 	src = src0 = (const u8 *)src_;
 //char *dst_end;
 //	dst_end = dst + cb;
-	*dst = '\0';
+	if (dst)
+		*dst = '\0';
 int x, y, z;
 	x = 3 & *src >> 6, y = 7 & *src >> 3, z = 7 & *src;
 u8 n;

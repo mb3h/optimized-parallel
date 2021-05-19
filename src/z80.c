@@ -712,6 +712,17 @@ u16 *rr;
 	m_->rr.sp += 2;
 	return clocks;
 }
+static unsigned ret (z80_s *m_, const u8 *p)
+{
+BUG(m_ && p)
+unsigned clocks;
+	clocks = M1;
+u16 nn;
+	nn = read_to_nn (m_->mem, m_->rr.sp, &clocks);
+	m_->rr.sp += 2;
+	m_->pc = (u16)(nn -1);
+	return clocks;
+}
 static unsigned exx (z80_s *m_, const u8 *p)
 {
 BUG(m_ && p)
@@ -904,7 +915,7 @@ static unsigned (*z80_opcode[256]) (z80_s *m_, const u8 *p) = {
 	,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r ,  cp_r 
 
 	, NULL  , pop_rr  , cond_jp , jp      , NULL  , NULL  , add_n , NULL  
-	, NULL  , NULL    , cond_jp , NULL    , NULL  , NULL  , adc_n , NULL  
+	, NULL  , ret     , cond_jp , NULL    , NULL  , NULL  , adc_n , NULL  
 	, NULL  , pop_rr  , cond_jp , NULL    , NULL  , NULL  , sub_n , NULL  
 	, NULL  , exx     , cond_jp , NULL    , NULL  , NULL  , sbc_n , NULL  
 	, NULL  , pop_rr  , cond_jp , NULL    , NULL  , NULL  , and_n , NULL  
